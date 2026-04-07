@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0f172a" />
+    <meta
+      name="description"
+      content="Mobilyacılar odası için resmi fiyat, teklif ve müşteri güveni odaklı web uygulaması."
+    />
+    <title>Yokuş Mobilya Oda Sistemi</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-card">
+          <div class="brand-mark">YM</div>
+          <div>
+            <p class="eyebrow">Resmi Teklif Motoru</p>
+            <h1>Yokuş Mobilya</h1>
+            <p class="muted">Oda, mobilyacı ve müşteri için ortak fiyat dili</p>
+          </div>
+        </div>
+
+        <div class="session-card">
+          <p class="section-kicker">Aktif Oturum</p>
+          <div id="sessionInfo"></div>
+          <button class="ghost-button wide" id="openLoginBtn">Rol / Giriş Değiştir</button>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav"></nav>
+
+        <div class="sidebar-footer">
+          <div class="pill success">Responsive</div>
+          <div class="pill accent">Türkçe arayüz</div>
+        </div>
+      </aside>
+
+      <div class="main-shell">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Yönetim + Üretici + Müşteri</p>
+            <h2 id="pageTitle">Ana Panel</h2>
+          </div>
+
+          <div class="topbar-actions">
+            <button class="ghost-button" id="newProjectBtn">Yeni Proje</button>
+            <button class="ghost-button" id="saveStateBtn">Yerel Kaydet</button>
+            <button class="primary-button" id="printContractBtn">Taslak Sözleşme</button>
+          </div>
+        </header>
+
+        <main class="content">
+          <section class="hero-grid">
+            <div class="hero-copy">
+              <div class="status-line">
+                <span class="status-dot"></span>
+                <span id="statusText">Sistem anlık maliyet ve resmi fiyat üretmeye hazır.</span>
+              </div>
+              <h3>Ölçü gir, resmi oda fiyatını ve mağaza teklifini aynı anda üret.</h3>
+              <p>
+                Mobilyacılar odasının belirlediği kalite baz fiyatları ile çalışan, mobilyacıya
+                sade ve hızlı ölçü girişi sunan, müşteriye ise güven veren şeffaf teklif ekranı
+                hazırladık.
+              </p>
+              <div class="hero-badges" id="heroBadges"></div>
+            </div>
+            <div class="hero-panel" id="heroPanel"></div>
+          </section>
+
+          <section class="stats-grid" id="statsGrid"></section>
+          <section class="view-container" id="viewContainer"></section>
+        </main>
+
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </div>
+    </div>
+
+    <dialog class="app-dialog" id="loginDialog">
+      <form method="dialog" class="dialog-card" id="loginForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Kullanıcı Girişi</p>
+            <h3>Sisteme geçiş yap</h3>
+          </div>
+          <button class="icon-button" value="cancel" title="Kapat">✕</button>
+        </div>
+
+        <div class="dialog-grid">
+          <label>
+            <span>Kullanıcı adı</span>
+            <input id="loginUsername" name="username" type="text" autocomplete="username" />
+          </label>
+          <label>
+            <span>Şifre</span>
+            <input
+              id="loginPassword"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+            />
+          </label>
+        </div>
+
+        <div class="demo-grid" id="demoGrid"></div>
+
+        <p class="form-hint">
+          Demo kullanıcılarla giriş yapabilir veya yönetim ekranından yeni kullanıcılar
+          tanımlayabilirsiniz.
+        </p>
+
+        <div class="dialog-actions">
+          <button class="ghost-button" value="cancel">İptal</button>
+          <button class="primary-button" type="submit">Giriş Yap</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

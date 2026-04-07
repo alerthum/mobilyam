@@ -1,0 +1,10 @@
+{
+  "name": "Yokuş Mobilya Oda Sistemi",
+  "short_name": "Yokuş Oda",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#0f172a",
+  "lang": "tr",
+  "description": "Mobilyacılar odası için resmi fiyat ve teklif sistemi"
+}

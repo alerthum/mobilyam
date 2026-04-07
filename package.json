@@ -1,0 +1,9 @@
+{
+  "name": "yokus-mobilya-oda-teklif-sistemi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobilyacılar odası için web tabanlı resmi fiyat ve teklif sistemi",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
