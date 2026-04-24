@@ -7,4 +7,5 @@ inc/
 
 .vercel
 .env*.local
+mobilya-state-backup.json
 *.xlsm

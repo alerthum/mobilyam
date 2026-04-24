@@ -19,7 +19,6 @@ function addOneYear(dateValue = todayIso()) {
 function getSessionSecret() {
   return (
     process.env.SESSION_SECRET ||
-    process.env.BLOB_READ_WRITE_TOKEN ||
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
     "yokus-local-session-secret"

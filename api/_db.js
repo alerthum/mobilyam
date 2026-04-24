@@ -1,9 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { list, put } = require("@vercel/blob");
 const { neon } = require("@neondatabase/serverless");
-
-const STATE_BLOB_PATH = "state/app-state.json";
 
 function repairString(value) {
   if (!/[\u00C3\u00C5\u00C4\u00E2]/.test(value)) return value;
@@ -33,41 +30,9 @@ function getDatabaseUrl() {
   );
 }
 
-function getBlobToken() {
-  return process.env.BLOB_READ_WRITE_TOKEN || "";
-}
-
 function readSeedState() {
   const seedPath = path.join(process.cwd(), "data", "default-state.json");
   return repairPayload(JSON.parse(fs.readFileSync(seedPath, "utf8")));
-}
-
-async function writeBlobState(nextState) {
-  await put(STATE_BLOB_PATH, JSON.stringify(repairPayload(nextState), null, 2), {
-    access: "public",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    cacheControlMaxAge: 60,
-    contentType: "application/json; charset=utf-8"
-  });
-}
-
-async function readBlobState() {
-  const result = await list({ prefix: STATE_BLOB_PATH, limit: 10 });
-  const stateBlob = result.blobs.find((item) => item.pathname === STATE_BLOB_PATH);
-
-  if (!stateBlob) {
-    const seed = readSeedState();
-    await writeBlobState(seed);
-    return { data: seed, storageMode: "live" };
-  }
-
-  const response = await fetch(stateBlob.downloadUrl || stateBlob.url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error("Blob i�erii okunamad1");
-  }
-
-  return { data: repairPayload(await response.json()), storageMode: "live" };
 }
 
 async function ensureSchema(sql) {
@@ -110,15 +75,6 @@ async function writePostgresState(databaseUrl, nextState) {
 }
 
 async function getRemoteState() {
-  if (getBlobToken()) {
-    try {
-      return await readBlobState();
-    } catch (error) {
-      console.warn("[state] Uzak depolama okunamadi, yerel demo veriye dusuluyor:", error.message);
-      return { data: readSeedState(), storageMode: "demo" };
-    }
-  }
-
   const databaseUrl = getDatabaseUrl();
   if (databaseUrl) {
     try {
@@ -133,16 +89,6 @@ async function getRemoteState() {
 }
 
 async function saveRemoteState(nextState) {
-  if (getBlobToken()) {
-    try {
-      await writeBlobState(nextState);
-      return { ok: true, storageMode: "live" };
-    } catch (error) {
-      console.warn("[state] Blob kaydedilemedi:", error.message);
-      return { ok: false, storageMode: "demo" };
-    }
-  }
-
   const databaseUrl = getDatabaseUrl();
   if (databaseUrl) {
     try {

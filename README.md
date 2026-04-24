@@ -25,19 +25,23 @@ http://localhost:4173
 - `mobilyaci / mob2026`
 - `musteri / misafir2026`
 
-## Not
+## Kalıcı veri (Postgres)
 
-Bu sürüm artık Vercel Blob ile kalıcı veri saklar. Yerelde `npm start` ile açtığınızda `.env.local` içindeki anahtar sayesinde aynı `/api/state` hattı canlı veri katmanına bağlanır. Eğer Blob anahtarı yoksa sistem otomatik olarak demo veriye geri düşer.
+Canlı ortamda uygulama durumu **Vercel Postgres (Neon)** üzerinde `app_state` tablosunda saklanır. Yerel çalıştırmada `DATABASE_URL` yoksa sistem [data/default-state.json](data/default-state.json) demo verisine düşer.
 
-## Vercel Yayını
+İsteğe bağlı: proje kökünde `.env.local` tanımlayıp `DATABASE_URL` (ve üretimdeki oturum tutarlılığı için `SESSION_SECRET`) vererek lokal API’yi aynı bulut veritabanına bağlayabilirsiniz. Örnek anahtarlar: [.env.example](.env.example).
 
-Bu proje Vercel üzerinde canlı veri saklama destekli olarak çalışır.
+Vercel Blob’da hâlâ `BLOB_READ_WRITE_TOKEN` varken yedek almak: `.env.local` içine bu token, sonra `npm run export:blob` → `mobilya-state-backup.json`. Detay: [docs/VERCEL-POSTGRES-ADIMLAR.md](docs/VERCEL-POSTGRES-ADIMLAR.md). Postgres’e yüklemek: `npm run migrate:state -- <dosya.json>`.
+
+## Vercel yayını
+
+Vercel’e bağlama ve menü adımları: [docs/VERCEL-POSTGRES-ADIMLAR.md](docs/VERCEL-POSTGRES-ADIMLAR.md).
 
 ```bash
 vercel
 ```
 
-Üretim yayını için:
+Üretim:
 
 ```bash
 vercel --prod

@@ -9,16 +9,20 @@
     "dev:api": "cross-env PORT=4175 node server.js",
     "dev:web": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate:state": "node scripts/migrate-from-json.js",
+    "export:blob": "node scripts/export-blob-state.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
     "@tailwindcss/vite": "^4.2.4",
-    "@vercel/blob": "^2.3.3",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "html2pdf.js": "^0.14.0",
     "tailwindcss": "^4.2.4",
     "vite": "^8.0.10"
+  },
+  "devDependencies": {
+    "@vercel/blob": "^2.3.3"
   }
 }
