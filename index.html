@@ -6,90 +6,75 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#f8fafc" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <meta
       name="description"
-      content="Mobilyacılar odası için resmi fiyat, teklif ve müşteri güveni odaklı web uygulaması."
+      content="UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI için resmi fiyat, lisans ve teklif yönetim uygulaması."
     />
-    <title>Yokuş Mobilya Oda Sistemi</title>
+    <title>UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body data-theme="light" class="mp-root">
     <div class="noise"></div>
-    <div class="app-shell">
+    <div class="app-shell mp-app-shell">
       <aside class="sidebar">
         <div class="brand-card">
-          <div class="brand-mark">YM</div>
-          <div>
+          <div class="brand-text">
             <p class="eyebrow">Resmi Teklif Motoru</p>
-            <h1>Yokuş Mobilya</h1>
-            <p class="muted">Oda, mobilyacı ve müşteri için ortak fiyat dili</p>
+            <h1>UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI</h1>
+            <p class="muted">Resmi fiyat · lisans · kullanıcı yönetimi</p>
           </div>
+          <div class="brand-mark" aria-hidden="true">UM</div>
         </div>
 
         <div class="session-card">
           <p class="section-kicker">Aktif Oturum</p>
           <div id="sessionInfo"></div>
-          <button class="ghost-button wide" id="openLoginBtn">Rol / Giriş Değiştir</button>
+          <div class="button-row">
+            <button class="ghost-button wide" id="openLoginBtn" hidden>Giriş Yap</button>
+          </div>
         </div>
 
         <nav class="sidebar-nav" id="sidebarNav"></nav>
-
-        <div class="sidebar-footer">
-          <div class="pill success">Responsive</div>
-          <div class="pill accent">Türkçe arayüz</div>
-        </div>
       </aside>
 
-      <div class="main-shell">
-        <header class="topbar">
+      <div class="main-shell mp-main-shell">
+        <header class="topbar mp-header">
           <div>
-            <p class="eyebrow">Yönetim + Üretici + Müşteri</p>
-            <h2 id="pageTitle">Ana Panel</h2>
+            <p class="eyebrow">Yönetim + Üretici</p>
+            <h2 id="pageTitle">Teklif Merkezi</h2>
           </div>
 
           <div class="topbar-actions">
-            <button class="ghost-button" id="newProjectBtn">Yeni Proje</button>
-            <button class="ghost-button" id="saveStateBtn">Yerel Kaydet</button>
-            <button class="primary-button" id="printContractBtn">Taslak Sözleşme</button>
+            <button class="ghost-button" id="themeToggleBtn" type="button" hidden>Koyu Tema</button>
+            <button class="primary-button" id="printContractBtn">Sözleşme</button>
           </div>
         </header>
 
-        <main class="content">
-          <section class="hero-grid">
-            <div class="hero-copy">
-              <div class="status-line">
-                <span class="status-dot"></span>
-                <span id="statusText">Sistem anlık maliyet ve resmi fiyat üretmeye hazır.</span>
-              </div>
-              <h3>Ölçü gir, resmi oda fiyatını ve mağaza teklifini aynı anda üret.</h3>
-              <p>
-                Mobilyacılar odasının belirlediği kalite baz fiyatları ile çalışan, mobilyacıya
-                sade ve hızlı ölçü girişi sunan, müşteriye ise güven veren şeffaf teklif ekranı
-                hazırladık.
-              </p>
-              <div class="hero-badges" id="heroBadges"></div>
-            </div>
-            <div class="hero-panel" id="heroPanel"></div>
-          </section>
-
-          <section class="stats-grid" id="statsGrid"></section>
+        <main class="content mp-content">
+          <section class="info-banner" id="infoBanner"></section>
+          <section class="sticky-summary" id="stickySummary"></section>
           <section class="view-container" id="viewContainer"></section>
         </main>
 
-        <nav class="bottom-nav" id="bottomNav"></nav>
+        <nav class="bottom-nav mp-tabbar" id="bottomNav"></nav>
       </div>
     </div>
 
-    <dialog class="app-dialog" id="loginDialog">
-      <form method="dialog" class="dialog-card" id="loginForm">
+    <dialog class="app-dialog mp-dialog" id="loginDialog">
+      <form method="dialog" class="dialog-card mp-dialog-card" id="loginForm">
         <div class="dialog-head">
           <div>
             <p class="eyebrow">Kullanıcı Girişi</p>
-            <h3>Sisteme geçiş yap</h3>
+            <h3>Sisteme giriş yap</h3>
           </div>
-          <button class="icon-button" value="cancel" title="Kapat">✕</button>
+          <button class="icon-button" value="cancel" title="Kapat">×</button>
         </div>
 
         <div class="dialog-grid">
@@ -111,8 +96,8 @@
         <div class="demo-grid" id="demoGrid"></div>
 
         <p class="form-hint">
-          Demo kullanıcılarla giriş yapabilir veya yönetim ekranından yeni kullanıcılar
-          tanımlayabilirsiniz.
+          Oda yönetimi kullanıcıları oluşturur ve lisans sürelerini yönetir.
+          Mobilyacılar yalnızca kendi verilerini görür.
         </p>
 
         <div class="dialog-actions">
@@ -122,6 +107,6 @@
       </form>
     </dialog>
 
-    <script src="./app.js"></script>
+    <script type="module" src="./src/main.js"></script>
   </body>
 </html>

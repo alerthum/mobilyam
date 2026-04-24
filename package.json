@@ -1,9 +1,24 @@
 {
   "name": "yokus-mobilya-oda-teklif-sistemi",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Mobilyacılar odası için web tabanlı resmi fiyat ve teklif sistemi",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "concurrently -k --kill-others-on-fail \"cross-env PORT=4175 node server.js\" \"vite\"",
+    "dev:api": "cross-env PORT=4175 node server.js",
+    "dev:web": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@tailwindcss/vite": "^4.2.4",
+    "@vercel/blob": "^2.3.3",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "html2pdf.js": "^0.14.0",
+    "tailwindcss": "^4.2.4",
+    "vite": "^8.0.10"
   }
 }

@@ -27,11 +27,11 @@ http://localhost:4173
 
 ## Not
 
-Bu sürüm, hızlı devreye alınabilecek bir MVP olarak ön yüz odaklıdır ve verileri tarayıcı `localStorage` içinde saklar.
+Bu sürüm artık Vercel Blob ile kalıcı veri saklar. Yerelde `npm start` ile açtığınızda `.env.local` içindeki anahtar sayesinde aynı `/api/state` hattı canlı veri katmanına bağlanır. Eğer Blob anahtarı yoksa sistem otomatik olarak demo veriye geri düşer.
 
 ## Vercel Yayını
 
-Bu proje doğrudan statik site olarak Vercel'e alınabilir.
+Bu proje Vercel üzerinde canlı veri saklama destekli olarak çalışır.
 
 ```bash
 vercel
