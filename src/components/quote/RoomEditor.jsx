@@ -17,6 +17,25 @@ import { formatCurrency, formatNumber } from "../../utils/format.js";
 import { getRoomDefinition } from "../../config/rooms.js";
 
 /**
+ * Modül bileşenleri dışarıda tutulur. İçeride `function Mutfak(){}` gibi
+ * her render'da yeni tanımlanan bileşenler KULLANILMAZ — React tür değişimi
+ * sanır ve tüm modül ağacını unmount eder; ölçü input'ları imleç kaybı yaşar.
+ */
+const ROOM_MODULE_BY_TYPE = {
+  gardirop: GardiropModule,
+  banyo: BanyoModule,
+  vestiyer: VestiyerModule,
+  mutfak: MutfakModule,
+  ofis: OfisModule
+};
+
+function RoomTypeModule({ type, room, onChange }) {
+  const Comp = ROOM_MODULE_BY_TYPE[type];
+  if (!Comp) return null;
+  return <Comp room={room} onChange={onChange} />;
+}
+
+/**
  * RoomEditor — odanın tamamı yerel state'te düzenlenir.
  *
  * Kayıt akışı:
@@ -35,23 +54,6 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
   const quality =
     qualities.find((q) => q.id === room.selectedQualityId) || qualities[0];
   const price = calculateRoomPrice(room, quality);
-
-  function ModuleByType() {
-    switch (room.type) {
-      case "gardirop":
-        return <GardiropModule room={room} onChange={setRoom} />;
-      case "banyo":
-        return <BanyoModule room={room} onChange={setRoom} />;
-      case "vestiyer":
-        return <VestiyerModule room={room} onChange={setRoom} />;
-      case "mutfak":
-        return <MutfakModule room={room} onChange={setRoom} />;
-      case "ofis":
-        return <OfisModule room={room} onChange={setRoom} />;
-      default:
-        return null;
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -109,7 +111,7 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
       </Card>
 
       {/* 2) Modül ölçüleri */}
-      <ModuleByType />
+      <RoomTypeModule type={room.type} room={room} onChange={setRoom} />
 
       {/* 3) Kalite seçimi */}
       <Card>

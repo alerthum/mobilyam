@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import SmartTextInput from "./SmartTextInput.jsx";
 import { parseDecimal, sanitizeDecimalInput, sanitizeIntegerInput } from "../../utils/decimal.js";
 
@@ -23,14 +23,20 @@ export default function DecimalInput({
   placeholder = "0",
   selectOnFocus = true,
   className,
+  onFocus: onFocusProp,
   ...rest
 }) {
   const [text, setText] = useState(() => valueToText(value, integer));
+  /** Odaktayken prop'tan `value` ile `text` üzerine yazma — imleç zıplamasını önler */
+  const focusedRef = useRef(false);
 
   useEffect(() => {
+    if (focusedRef.current) return;
     // Dışarıdan gelen değer önemli ölçüde değiştiyse senkron tut
     const numericFromText = parseDecimal(text);
-    const numericFromValue = Number(value || 0);
+    const numericFromValue = Number(
+      value === null || value === undefined || value === "" ? 0 : value
+    );
     if (Math.abs(numericFromText - numericFromValue) > 0.0001) {
       setText(valueToText(value, integer));
     }
@@ -52,6 +58,11 @@ export default function DecimalInput({
     if (Number.isFinite(parsed)) onValueChange?.(parsed);
   }
 
+  function handleFocus(e) {
+    focusedRef.current = true;
+    onFocusProp?.(e);
+  }
+
   function handleBlur() {
     const parsed = parseDecimal(text);
     const display = integer
@@ -59,12 +70,15 @@ export default function DecimalInput({
       : prettyDecimal(parsed);
     setText(display);
     onValueChange?.(integer ? Math.round(parsed) : parsed);
+    focusedRef.current = false;
   }
 
   return (
     <SmartTextInput
+      {...rest}
       value={text}
       onChange={handleChange}
+      onFocus={handleFocus}
       onBlur={handleBlur}
       sanitize={integer ? sanitizeIntegerInput : sanitizeDecimalInput}
       placeholder={placeholder}
@@ -73,7 +87,6 @@ export default function DecimalInput({
       inputMode={integer ? "numeric" : "decimal"}
       selectOnFocus={selectOnFocus}
       className={className}
-      {...rest}
     />
   );
 }
