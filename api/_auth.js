@@ -150,7 +150,9 @@ function filterStateForUser(remoteState, user) {
       hardwarePackages: baseState.hardwarePackages,
       servicesCatalog: baseState.servicesCatalog,
       users: (baseState.users || []).filter((item) => !item.hiddenFromManagement),
-      projects: []
+      // Oda yönetimi tüm üreticilerin tekliflerini READ-ONLY görür.
+      // mergeStateForUser chamber dalı projects'e dokunmadığı için yazılamaz.
+      projects: baseState.projects || []
     };
   }
 

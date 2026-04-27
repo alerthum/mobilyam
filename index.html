@@ -4,109 +4,26 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
     />
-    <meta name="theme-color" content="#f8fafc" />
+    <meta name="theme-color" content="#0b0c10" />
+    <link rel="icon" type="image/png" href="/mobar-logo.png" />
+    <link rel="apple-touch-icon" href="/mobar-logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
     <meta
       name="description"
-      content="UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI için resmi fiyat, lisans ve teklif yönetim uygulaması."
+      content="MOBAR 2026 · Uşak Marangozlar Esnaf ve Sanatkarlar Odası · Resmi Mobilya Teklif Sistemi"
     />
-    <title>UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI</title>
+    <title>MOBAR 2026 — Uşak Marangozlar Resmi Teklif Motoru</title>
     <link rel="manifest" href="./manifest.webmanifest" />
   </head>
-  <body data-theme="light" class="mp-root">
-    <div class="noise"></div>
-    <div class="app-shell mp-app-shell">
-      <aside class="sidebar">
-        <div class="brand-card">
-          <div class="brand-text">
-            <p class="eyebrow">Resmi Teklif Motoru</p>
-            <h1>UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI</h1>
-            <p class="muted">Resmi fiyat · lisans · kullanıcı yönetimi</p>
-          </div>
-          <div class="brand-mark" aria-hidden="true">UM</div>
-        </div>
-
-        <div class="session-card">
-          <p class="section-kicker">Aktif Oturum</p>
-          <div id="sessionInfo"></div>
-          <div class="button-row">
-            <button class="ghost-button wide" id="openLoginBtn" hidden>Giriş Yap</button>
-          </div>
-        </div>
-
-        <nav class="sidebar-nav" id="sidebarNav"></nav>
-      </aside>
-
-      <div class="main-shell mp-main-shell">
-        <header class="topbar mp-header">
-          <div>
-            <p class="eyebrow">Yönetim + Üretici</p>
-            <h2 id="pageTitle">Teklif Merkezi</h2>
-          </div>
-
-          <div class="topbar-actions">
-            <button class="ghost-button" id="themeToggleBtn" type="button" hidden>Koyu Tema</button>
-            <button class="primary-button" id="printContractBtn">Sözleşme</button>
-          </div>
-        </header>
-
-        <main class="content mp-content">
-          <section class="info-banner" id="infoBanner"></section>
-          <section class="sticky-summary" id="stickySummary"></section>
-          <section class="view-container" id="viewContainer"></section>
-        </main>
-
-        <nav class="bottom-nav mp-tabbar" id="bottomNav"></nav>
-      </div>
-    </div>
-
-    <dialog class="app-dialog mp-dialog" id="loginDialog">
-      <form method="dialog" class="dialog-card mp-dialog-card" id="loginForm">
-        <div class="dialog-head">
-          <div>
-            <p class="eyebrow">Kullanıcı Girişi</p>
-            <h3>Sisteme giriş yap</h3>
-          </div>
-          <button class="icon-button" value="cancel" title="Kapat">×</button>
-        </div>
-
-        <div class="dialog-grid">
-          <label>
-            <span>Kullanıcı adı</span>
-            <input id="loginUsername" name="username" type="text" autocomplete="username" />
-          </label>
-          <label>
-            <span>Şifre</span>
-            <input
-              id="loginPassword"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-            />
-          </label>
-        </div>
-
-        <div class="demo-grid" id="demoGrid"></div>
-
-        <p class="form-hint">
-          Oda yönetimi kullanıcıları oluşturur ve lisans sürelerini yönetir.
-          Mobilyacılar yalnızca kendi verilerini görür.
-        </p>
-
-        <div class="dialog-actions">
-          <button class="ghost-button" value="cancel">İptal</button>
-          <button class="primary-button" type="submit">Giriş Yap</button>
-        </div>
-      </form>
-    </dialog>
-
-    <script type="module" src="./src/main.js"></script>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.jsx"></script>
   </body>
 </html>
