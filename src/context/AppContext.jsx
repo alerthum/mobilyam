@@ -10,14 +10,14 @@ import React, {
 import * as api from "../api/client.js";
 
 /**
- * Uygulama global state — uzaktan veri (chamber, qualities, users, projects)
+ * Uygulama global state — uzaktan veri (chamber, qualities, users, quotes)
  * + oturum yönetimi.
  *
  * Kayıt modeli:
  *  - `updateRemote(mutator)` SADECE local state'i değiştirir, API'ye gitmez.
  *  - Yapısal aksiyonlar (oluştur/sil) `commit(mutator)` ile yapılır:
  *      hem state değişir hem hemen API'ye yazılır.
- *  - Form alanları (proje adı, indirim, vs.) için kullanıcı kendi
+ *  - Form alanları (teklif bilgileri, indirim, vs.) için kullanıcı kendi
  *    "Güncelle" butonu ile `saveNow()` çağırarak commit eder.
  *
  * Otomatik kaydetme yoktur. saveStatus sadece aktif bir save sırasında

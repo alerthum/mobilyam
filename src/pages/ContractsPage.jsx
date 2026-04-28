@@ -10,20 +10,19 @@ import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import { calculateQuoteTotals } from "../utils/calculations.js";
 import { formatCurrency, formatDate } from "../utils/format.js";
 import {
-  FILTER_PRESETS,
   WORKFLOW_LABELS,
-  isAwaitingWorkflow,
   quoteWorkflow
 } from "../constants/quoteWorkflow.js";
 import ProposalPdfBody from "../components/document/ProposalPdfBody.jsx";
 import { downloadElementAsPdf, formatPdfErrorForUser } from "../utils/pdf.js";
 import { useToast } from "../context/ModalContext.jsx";
+import { isProjectActive } from "../utils/projectLifecycle.js";
 
 export default function ContractsPage({ onOpenContract }) {
   const { remote } = useApp();
   const user = useCurrentUser();
   const toast = useToast();
-  const [filterId, setFilterId] = useState("pending");
+  const [filterId, setFilterId] = useState("active");
   const [query, setQuery] = useState("");
   const [pdfTarget, setPdfTarget] = useState(null);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -31,27 +30,28 @@ export default function ContractsPage({ onOpenContract }) {
 
   const items = useMemo(() => {
     if (!remote) return [];
-    const projects =
+    const quotes =
       user?.role === "producer"
-        ? (remote.projects || []).filter((p) => p.ownerUserId === user.id)
-        : remote.projects || [];
+        ? (remote.quotes || []).filter((q) => q.ownerUserId === user.id)
+        : remote.quotes || [];
 
-    const list = [];
-    projects.forEach((p) => {
-      (p.quotes || []).forEach((q) => {
-        list.push({ project: p, quote: q });
-      });
-    });
-    return list.sort((a, b) => (b.quote.date || "").localeCompare(a.quote.date || ""));
+    return quotes
+      .map((quote) => ({ project: quote, quote }))
+      .sort((a, b) => (b.quote.date || "").localeCompare(a.quote.date || ""));
   }, [remote, user]);
 
   const filteredItems = useMemo(() => {
     const qLower = query.trim().toLocaleLowerCase("tr");
     return items.filter(({ project, quote }) => {
       const wf = quoteWorkflow(quote);
-      let statusOk = true;
-      if (filterId === "pending") statusOk = isAwaitingWorkflow(quote);
-      else if (filterId !== "all") statusOk = wf === filterId;
+      let statusOk = false;
+      if (filterId === "active") {
+        statusOk = isProjectActive(quote) && !["contracted", "completed"].includes(wf);
+      } else if (filterId === "inactive") {
+        statusOk = !isProjectActive(quote);
+      } else if (filterId === "contracted") {
+        statusOk = ["contracted", "completed"].includes(wf);
+      }
       if (!statusOk) return false;
       if (!qLower) return true;
       const hay = [
@@ -151,7 +151,11 @@ export default function ContractsPage({ onOpenContract }) {
       />
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-4">
         <div className="flex flex-wrap gap-2">
-          {FILTER_PRESETS.map((f) => (
+          {[
+            { id: "active", label: "Aktif teklifler" },
+            { id: "inactive", label: "Pasif teklifler" },
+            { id: "contracted", label: "Sözleşmeler" }
+          ].map((f) => (
             <button
               key={f.id}
               type="button"
@@ -183,9 +187,7 @@ export default function ContractsPage({ onOpenContract }) {
             icon={FileSignature}
             title="Kayıt yok"
             description={
-              filterId === "pending"
-                ? "Bekleyen teklif bulunmuyor veya filtre eşleşmedi."
-                : "Bu filtrede teklif yok."
+              "Bu filtrede teklif yok."
             }
           />
         ) : (
@@ -238,7 +240,7 @@ export default function ContractsPage({ onOpenContract }) {
                             toast.warning("Teklif düzenleme yalnızca mobilyacı hesapları içindir.");
                             return;
                           }
-                          onOpenContract?.(project.id, quote.id);
+                          onOpenContract?.(quote.id, quote.id);
                         }}
                       />
                     </div>

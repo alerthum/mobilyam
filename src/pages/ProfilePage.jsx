@@ -21,10 +21,7 @@ export default function ProfilePage() {
   const user = useCurrentUser();
   const confirm = useConfirm();
 
-  const myProjects = (remote?.projects || []).filter(
-    (p) => p.ownerUserId === user?.id
-  );
-  const myQuotes = myProjects.flatMap((p) => p.quotes || []);
+  const myQuotes = (remote?.quotes || []).filter((q) => q.ownerUserId === user?.id);
   const totalRevenue = myQuotes.reduce(
     (s, q) =>
       s + calculateQuoteTotals(q, remote?.qualities || []).totals.dealerGrandTotal,

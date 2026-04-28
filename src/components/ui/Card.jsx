@@ -25,7 +25,7 @@ export default function Card({
 
 export function CardHeader({ title, subtitle, action, eyebrow, icon: Icon, accent }) {
   return (
-    <div className="flex items-start justify-between gap-4">
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div className="flex items-start gap-3 min-w-0">
         {Icon && (
           <div

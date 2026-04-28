@@ -50,22 +50,19 @@ export default function UsersPage() {
       ? scopedUsers.filter((u) => u.chamberId === user.chamberId)
       : scopedUsers;
 
-  const projects = remote?.projects || [];
+  const quotes = remote?.quotes || [];
   const userStats = useMemo(() => {
     const map = new Map();
-    projects.forEach((p) => {
-      const id = p.ownerUserId;
+    quotes.forEach((q) => {
+      const id = q.ownerUserId;
       if (!id) return;
       const arr = map.get(id) || { quotes: 0, lastDate: "" };
-      const qs = p.quotes || [];
-      arr.quotes += qs.length;
-      qs.forEach((q) => {
-        if (q.date && q.date > arr.lastDate) arr.lastDate = q.date;
-      });
+      arr.quotes += 1;
+      if (q.date && q.date > arr.lastDate) arr.lastDate = q.date;
       map.set(id, arr);
     });
     return map;
-  }, [projects]);
+  }, [quotes]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");

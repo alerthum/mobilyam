@@ -20,7 +20,7 @@ export default function KpiCard({
   const a = accents[accent] || accents.brand;
 
   return (
-    <div className={clsx("yk-card p-4 sm:p-5 flex items-start gap-3", className)}>
+    <div className={clsx("yk-card p-3 sm:p-5 flex items-start gap-2 sm:gap-3 min-w-0", className)}>
       {Icon && (
         <div
           className={clsx(
@@ -34,7 +34,7 @@ export default function KpiCard({
       )}
       <div className="min-w-0 flex-1">
         <p className="yk-eyebrow truncate">{label}</p>
-        <p className="text-2xl font-extrabold text-ink-900 mt-1 tabular-nums truncate tracking-tight">
+        <p className="text-lg sm:text-2xl font-extrabold text-ink-900 mt-1 tabular-nums truncate tracking-tight">
           {value}
         </p>
         {hint && <p className="text-xs text-ink-500 mt-1 truncate">{hint}</p>}

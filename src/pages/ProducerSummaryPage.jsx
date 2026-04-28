@@ -18,6 +18,7 @@ import { calculateQuoteTotals } from "../utils/calculations.js";
 import { formatCurrency } from "../utils/format.js";
 import { quoteWorkflow } from "../constants/quoteWorkflow.js";
 import { buildProducerAnalytics } from "../utils/producerAnalytics.js";
+import { isProjectActive } from "../utils/projectLifecycle.js";
 
 function ymKey(dateStr) {
   if (!dateStr || dateStr.length < 7) return null;
@@ -60,31 +61,30 @@ export default function ProducerSummaryPage() {
   const qualities = remote?.qualities || [];
 
   const rows = useMemo(() => {
-    const projects =
+    const quotes =
       user?.role === "system_admin"
-        ? remote?.projects || []
-        : (remote?.projects || []).filter((p) => p.ownerUserId === user?.id);
+        ? remote?.quotes || []
+        : (remote?.quotes || []).filter((q) => q.ownerUserId === user?.id);
 
     const list = [];
-    projects.forEach((p) => {
-      (p.quotes || []).forEach((q) => {
-        const wf = quoteWorkflow(q);
-        const calc = calculateQuoteTotals(q, qualities);
-        list.push({
-          project: p,
-          quote: q,
-          date: q.date,
-          ym: ymKey(q.date),
-          wf,
-          projectName: p.projectName,
-          total: calc.totals.dealerGrandTotal,
-          ...quoteExtrasFlags(q, qualities),
-          converted: isConverted(wf)
-        });
+    quotes.forEach((q) => {
+      if (!isProjectActive(q)) return;
+      const wf = quoteWorkflow(q);
+      const calc = calculateQuoteTotals(q, qualities);
+      list.push({
+        project: q,
+        quote: q,
+        date: q.date,
+        ym: ymKey(q.date),
+        wf,
+        projectName: q.projectName,
+        total: calc.totals.dealerGrandTotal,
+        ...quoteExtrasFlags(q, qualities),
+        converted: isConverted(wf)
       });
     });
     return list;
-  }, [remote?.projects, qualities, user?.id, user?.role]);
+  }, [remote?.quotes, qualities, user?.id, user?.role]);
 
   const analytics = useMemo(() => buildProducerAnalytics(rows, qualities), [rows, qualities]);
 
@@ -127,7 +127,7 @@ export default function ProducerSummaryPage() {
       withExtrasRate: rate(withX),
       withoutExtrasRate: rate(woX),
       sumTot,
-      uniqueProjects: new Set(rows.map((r) => r.project.id)).size
+      uniqueProjects: new Set(rows.map((r) => r.project.legacyProjectId || r.project.id)).size
     };
   }, [rows]);
 
@@ -156,10 +156,10 @@ export default function ProducerSummaryPage() {
   }, [rows, analytics, kpis]);
 
   return (
-    <>
-      <TopBar title="Özet" subtitle="Satış hafızası — oda, kalite ve dönüşüm analitiği" />
-      <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden">
+      <TopBar title="Özet" subtitle="Satış hafızası — oda, kalite ve dönüşüm" />
+      <div className="px-3 sm:px-6 py-4 sm:py-5 max-w-6xl mx-auto w-full space-y-4 sm:space-y-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
           <KpiCard label="Toplam teklif" value={kpis.totalQ} icon={BarChart3} accent="brand" />
           <KpiCard label="Projeler" value={kpis.uniqueProjects} icon={LayoutGrid} accent="accent" />
           <KpiCard label="Dönüşüm" value={`%${(kpis.convRate * 100).toFixed(1)}`} icon={TrendingUp} accent="success" />
@@ -218,15 +218,15 @@ export default function ProducerSummaryPage() {
         <Card>
           <CardHeader
             title="Kurumsal içgörüler"
-            subtitle="Davranış ve dönüşüm"
+            subtitle="Davranış ve dönüşüm (aktif projeler)"
             icon={Lightbulb}
             accent="bg-warning-50 text-warning-700"
           />
-          <ul className="mt-4 space-y-3 text-sm text-ink-600 leading-relaxed">
+          <ul className="mt-3 sm:mt-4 space-y-2 sm:space-y-3 text-[11px] sm:text-sm text-ink-600 leading-snug sm:leading-relaxed">
             {insights.map((t, i) => (
-              <li key={i} className="flex gap-2">
-                <span className="text-brand-500 font-bold">{i + 1}.</span>
-                <span>{t}</span>
+              <li key={i} className="flex gap-2 items-start">
+                <span className="text-brand-500 font-bold shrink-0">{i + 1}.</span>
+                <span className="min-w-0 break-words">{t}</span>
               </li>
             ))}
           </ul>
@@ -257,23 +257,47 @@ export default function ProducerSummaryPage() {
           )}
         </Card>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader title="Ek kalemler" subtitle="Cam / hırdavat / hizmet kullanılmış teklifler" icon={Truck} />
-            <p className="mt-3 text-2xl font-black text-brand-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="yk-card overflow-hidden p-4">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-ink-400">
+                  Ek kalemler
+                </p>
+                <p className="mt-1 text-[11px] leading-snug text-ink-600">
+                  Cam · hırdavat · ek hizmet dahil tekliflerde dönüşüm oranı.
+                </p>
+              </div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-brand-600 text-white shadow-md ring-1 ring-white/20">
+                <Truck size={18} strokeWidth={2.2} aria-hidden />
+              </div>
+            </div>
+            <p className="mt-3 text-2xl font-black tabular-nums text-brand-700">
               %{(kpis.withExtrasRate * 100).toFixed(1)}
             </p>
-            <p className="mt-2 text-xs text-ink-500 leading-relaxed">Bu grubun dönüşüm oranı.</p>
-          </Card>
-          <Card>
-            <CardHeader title="Sadece ana kalemler" subtitle="Ek satır kullanılmamış" icon={Puzzle} />
-            <p className="mt-3 text-2xl font-black text-ink-800">
+            <p className="mt-1.5 text-[10px] leading-snug text-ink-500">Bu gruptaki sözleşmeye dönüş.</p>
+          </div>
+          <div className="yk-card overflow-hidden p-4">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-ink-400">
+                  Ana kalemler
+                </p>
+                <p className="mt-1 text-[11px] leading-snug text-ink-600">
+                  Yalnızca ana kalem satırları; ek satır yok. Karşılaştırma.
+                </p>
+              </div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-slate-800 text-white shadow-md ring-1 ring-white/15">
+                <Puzzle size={18} strokeWidth={2.2} aria-hidden />
+              </div>
+            </div>
+            <p className="mt-3 text-2xl font-black tabular-nums text-ink-800">
               %{(kpis.withoutExtrasRate * 100).toFixed(1)}
             </p>
-            <p className="mt-2 text-xs text-ink-500 leading-relaxed">Karşılaştırma için.</p>
-          </Card>
+            <p className="mt-1.5 text-[10px] leading-snug text-ink-500">Sadece çekirdek kalemler grubu.</p>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

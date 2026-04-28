@@ -24,19 +24,15 @@ export default function DashboardPage() {
   const isChamber = user?.role === "chamber";
 
   const stats = useMemo(() => {
-    const projects = remote?.projects || [];
-    let totalQuotes = 0;
+    const quotes = remote?.quotes || [];
     let totalRevenue = 0;
     let totalArea = 0;
-    projects.forEach((p) => {
-      (p.quotes || []).forEach((q) => {
-        totalQuotes++;
-        const calc = calculateQuoteTotals(q, remote?.qualities || []);
-        totalRevenue += calc.totals.dealerGrandTotal;
-        totalArea += calc.rooms.reduce((s, r) => s + r.price.panelEquivalentM2, 0);
-      });
+    quotes.forEach((q) => {
+      const calc = calculateQuoteTotals(q, remote?.qualities || []);
+      totalRevenue += calc.totals.dealerGrandTotal;
+      totalArea += calc.rooms.reduce((s, r) => s + r.price.panelEquivalentM2, 0);
     });
-    return { totalProjects: projects.length, totalQuotes, totalRevenue, totalArea };
+    return { totalProjects: quotes.length, totalQuotes: quotes.length, totalRevenue, totalArea };
   }, [remote]);
 
   async function publishBroadcast() {
@@ -176,7 +172,7 @@ export default function DashboardPage() {
       <TopBar title="Özet" subtitle="Genel görünüm" />
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KpiCard label="Toplam Proje" value={stats.totalProjects} icon={Folder} />
+          <KpiCard label="Toplam Teklif" value={stats.totalProjects} icon={Folder} />
           <KpiCard label="Toplam Teklif" value={stats.totalQuotes} icon={Receipt} accent="ink" />
           <KpiCard
             label="Toplam Hacim"

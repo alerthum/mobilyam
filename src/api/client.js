@@ -18,7 +18,7 @@ function getEmptyState() {
     hardwarePackages: [],
     servicesCatalog: [],
     users: [],
-    projects: []
+    quotes: []
   };
 }
 

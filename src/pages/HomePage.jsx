@@ -1,19 +1,14 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import clsx from "clsx";
 import {
   Plus,
   Folder,
-  Wallet,
-  Receipt,
-  Layers3,
+  Search,
   Trash2,
-  ArrowRight,
-  Pencil
+  ArrowRight
 } from "lucide-react";
 import TopBar from "../components/layout/TopBar.jsx";
-import Card, { CardHeader } from "../components/ui/Card.jsx";
-import KpiCard from "../components/ui/KpiCard.jsx";
-import EmptyState from "../components/ui/EmptyState.jsx";
+import Card from "../components/ui/Card.jsx";
 import Button from "../components/ui/Button.jsx";
 import Badge from "../components/ui/Badge.jsx";
 import IconButton from "../components/ui/IconButton.jsx";
@@ -22,54 +17,65 @@ import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import { useConfirm, useToast } from "../context/ModalContext.jsx";
 import { useProjectActions } from "../hooks/useProjectActions.js";
 import { calculateQuoteTotals } from "../utils/calculations.js";
-import { formatCurrency, formatDate } from "../utils/format.js";
+import { formatCurrency } from "../utils/format.js";
+import { isProjectActive } from "../utils/projectLifecycle.js";
+import { quoteWorkflow } from "../constants/quoteWorkflow.js";
 
-export default function HomePage({ onCreateProject, onOpenQuote, onOpenProject }) {
+export default function HomePage({ onCreateProject, onOpenQuote }) {
   const { remote } = useApp();
   const user = useCurrentUser();
   const confirm = useConfirm();
   const toast = useToast();
   const actions = useProjectActions();
+  const [quoteStatusFilter, setQuoteStatusFilter] = useState("active");
+  const [quoteSearch, setQuoteSearch] = useState("");
 
-  const visibleProjects = useMemo(() => {
+  const visibleQuotes = useMemo(() => {
     if (!remote) return [];
     if (user?.role === "producer") {
-      return (remote.projects || []).filter((p) => p.ownerUserId === user.id);
+      return (remote.quotes || []).filter((q) => q.ownerUserId === user.id);
     }
-    return remote.projects || [];
+    return remote.quotes || [];
   }, [remote, user]);
 
-  const stats = useMemo(() => {
-    let totalQuotes = 0;
-    let totalRevenue = 0;
-    let totalArea = 0;
-    visibleProjects.forEach((p) => {
-      (p.quotes || []).forEach((q) => {
-        totalQuotes++;
-        const calc = calculateQuoteTotals(q, remote?.qualities || []);
-        totalRevenue += calc.totals.dealerGrandTotal;
-        totalArea += calc.rooms.reduce((s, r) => s + r.price.panelEquivalentM2, 0);
-      });
+  const filteredQuotes = useMemo(() => {
+    let list = visibleQuotes;
+    if (quoteStatusFilter === "active") {
+      list = list.filter((q) => isProjectActive(q) && !["contracted", "completed"].includes(quoteWorkflow(q)));
+    }
+    if (quoteStatusFilter === "inactive") {
+      list = list.filter((q) => !isProjectActive(q));
+    }
+    if (quoteStatusFilter === "contracted") {
+      list = list.filter((q) => ["contracted", "completed"].includes(quoteWorkflow(q)));
+    }
+    const q = quoteSearch.trim().toLocaleLowerCase("tr");
+    if (!q) return list;
+    return list.filter((item) => {
+      const hay = [item.projectName, item.customerName, item.contractCode, item.customerPhone]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase("tr");
+      return hay.includes(q);
     });
-    return { totalQuotes, totalRevenue, totalArea };
-  }, [visibleProjects, remote]);
+  }, [visibleQuotes, quoteStatusFilter, quoteSearch]);
 
   async function handleCreate() {
-    const id = onCreateProject();
+    const id = await onCreateProject();
     return id;
   }
 
-  async function deleteProject(p) {
+  async function deleteQuote(item) {
     const ok = await confirm({
       variant: "danger",
-      title: "Proje silinsin mi?",
-      description: `"${p.projectName}" projesi ve tüm teklifleri kalıcı olarak silinecek.`,
+      title: "Teklif silinsin mi?",
+      description: `"${item.projectName}" teklifi kalıcı olarak silinecek.`,
       confirmLabel: "Evet, sil",
       cancelLabel: "Vazgeç"
     });
     if (!ok) return;
-    actions.deleteProject(p.id);
-    toast.success("Proje silindi");
+    actions.deleteProject(item.id);
+    toast.success("Teklif silindi");
   }
 
   const firstName = user?.fullName ? user.fullName.split(" ")[0] : "";
@@ -131,15 +137,7 @@ export default function HomePage({ onCreateProject, onOpenQuote, onOpenProject }
 
   return (
     <>
-      <TopBar
-        title="Anasayfa"
-        subtitle="Resmi Teklif Motoru"
-        action={
-          <Button icon={Plus} onClick={handleCreate} size="sm" variant="dark">
-            <span className="hidden sm:inline">Yeni proje</span>
-          </Button>
-        }
-      />
+      <TopBar title="Anasayfa" subtitle="Resmi Teklif Motoru" />
 
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
         {/* Hero — Coffy tarzı siyah kart + turuncu accent */}
@@ -171,66 +169,72 @@ export default function HomePage({ onCreateProject, onOpenQuote, onOpenProject }
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          <KpiCard
-            label="Toplam Proje"
-            value={visibleProjects.length}
-            icon={Folder}
-            accent="brand"
-          />
-          <KpiCard
-            label="Toplam Teklif"
-            value={stats.totalQuotes}
-            icon={Receipt}
-            accent="ink"
-          />
-          <KpiCard
-            label="Toplam Hacim"
-            value={formatCurrency(stats.totalRevenue)}
-            icon={Wallet}
-            accent="success"
-            className="col-span-2 lg:col-span-1"
-          />
-        </div>
-
         <Card padded={false}>
           <div className="p-5 flex items-center justify-between">
             <div>
-              <p className="yk-eyebrow">Projeler</p>
+              <p className="yk-eyebrow">Teklifler</p>
               <h2 className="yk-display text-xl text-ink-900 mt-1">
-                Aktif Projeler
+                Teklif listesi
               </h2>
             </div>
-            <Button icon={Plus} onClick={handleCreate} size="sm" variant="dark">
-              Ekle
-            </Button>
           </div>
-          {visibleProjects.length === 0 ? (
-            <div className="p-5">
-              <EmptyState
-                icon={Folder}
-                title="İlk projenizi ekleyin"
-                description="Yeni bir proje oluşturarak teklif hazırlamaya başlayın."
-                action={
-                  <Button icon={Plus} onClick={handleCreate}>
-                    Proje oluştur
-                  </Button>
-                }
+          <div className="px-4 pb-4 space-y-3 border-b border-ink-100">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none"
+                aria-hidden
               />
+              <input
+                type="search"
+                value={quoteSearch}
+                onChange={(e) => setQuoteSearch(e.target.value)}
+                placeholder="Teklif, müşteri, kod veya telefon…"
+                className="w-full rounded-xl border border-ink-200 bg-white py-2 pl-9 pr-3 text-sm text-ink-900 placeholder:text-ink-400 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                autoComplete="off"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "active", label: "Aktif teklifler" },
+                { id: "inactive", label: "Pasif teklifler" },
+                { id: "contracted", label: "Sözleşmeler" }
+              ].map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => setQuoteStatusFilter(chip.id)}
+                  className={clsx(
+                    "yk-chip text-xs font-semibold transition",
+                    quoteStatusFilter === chip.id
+                      ? "bg-ink-900 text-white border-ink-900"
+                      : "bg-white text-ink-600 border-ink-200 hover:border-ink-300"
+                  )}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {visibleQuotes.length === 0 ? (
+            <div className="p-6 text-center text-sm text-ink-500">
+              Henüz teklif bulunmuyor.
+            </div>
+          ) : filteredQuotes.length === 0 ? (
+            <div className="p-6 text-center text-sm text-ink-500">
+              Arama veya filtreyle eşleşen teklif yok.
             </div>
           ) : (
             <div className="px-2 pb-2">
-              {visibleProjects.map((p) => (
+              {filteredQuotes.map((p) => (
                 <ProjectRow
                   key={p.id}
                   project={p}
                   qualities={remote?.qualities || []}
                   onOpen={() => {
-                    const lastQuote = p.quotes?.[p.quotes.length - 1];
-                    if (lastQuote) onOpenQuote?.(p.id, lastQuote.id);
-                    else onOpenProject?.(p.id);
+                    onOpenQuote?.(p.id, p.id);
                   }}
-                  onDelete={() => deleteProject(p)}
+                  onDelete={() => deleteQuote(p)}
                 />
               ))}
             </div>
@@ -242,8 +246,8 @@ export default function HomePage({ onCreateProject, onOpenQuote, onOpenProject }
 }
 
 function ProjectRow({ project, qualities, onOpen, onDelete, readOnly }) {
-  const lastQuote = project.quotes?.[project.quotes.length - 1];
-  const calc = lastQuote ? calculateQuoteTotals(lastQuote, qualities) : null;
+  const calc = calculateQuoteTotals(project, qualities);
+  const activeProject = isProjectActive(project);
   return (
     <div
       className={clsx(
@@ -257,9 +261,14 @@ function ProjectRow({ project, qualities, onOpen, onDelete, readOnly }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-sm font-bold text-ink-900 truncate">
-            {project.projectName || "Yeni Proje"}
+            {project.projectName || "Yeni Teklif"}
           </h3>
-          <Badge variant="dark">{project.quotes?.length || 0} teklif</Badge>
+          <Badge variant="dark">Teklif #{project.number || 1}</Badge>
+          {!activeProject && (
+            <Badge variant="default" className="text-[10px] bg-ink-200 text-ink-800 border-ink-300">
+              Pasif
+            </Badge>
+          )}
           {readOnly && (
             <Badge variant="default" className="text-[10px]">
               Salt okunur

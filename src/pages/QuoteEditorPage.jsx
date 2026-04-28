@@ -10,7 +10,9 @@ import {
   FileDown,
   FileSignature,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Power,
+  PowerOff
 } from "lucide-react";
 import Modal from "../components/modals/Modal.jsx";
 import RoomTypePicker from "../components/quote/RoomTypePicker.jsx";
@@ -29,7 +31,6 @@ import TopBar from "../components/layout/TopBar.jsx";
 import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import {
   WORKFLOW_LABELS,
-  WORKFLOW_ORDER,
   quoteWorkflow,
   pdfDocumentHeading
 } from "../constants/quoteWorkflow.js";
@@ -40,6 +41,7 @@ import { useProjectActions } from "../hooks/useProjectActions.js";
 import { createRoom } from "../config/rooms.js";
 import { calculateQuoteTotals } from "../utils/calculations.js";
 import { formatCurrency, formatNumber } from "../utils/format.js";
+import { isProjectActive, projectStatusLabel } from "../utils/projectLifecycle.js";
 
 export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   const { remote, saveNow, saveStatus, commit } = useApp();
@@ -59,8 +61,8 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   const pdfHolderRef = useRef(null);
   const saving = saveStatus === "saving";
 
-  const project = remote?.projects?.find((p) => p.id === projectId);
-  const quote = project?.quotes?.find((q) => q.id === quoteId);
+  const quote = remote?.quotes?.find((q) => q.id === quoteId);
+  const project = quote;
   const qualities = remote?.qualities || [];
 
   const calc = useMemo(() => {
@@ -108,7 +110,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
       <div className="p-6">
         <EmptyState
           title="Teklif bulunamadı"
-          description="Proje veya teklif silinmiş olabilir."
+          description="Teklif silinmiş olabilir."
           action={
             <Button onClick={onBack} icon={ArrowLeft}>
               Geri
@@ -168,7 +170,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
       return;
     }
     const wf = quoteWorkflow(quote);
-    const base = (project.projectName || pdfDocumentHeading(quote)).replace(
+      const base = (quote.projectName || pdfDocumentHeading(quote)).replace(
       /[^\w\-.ğüşıöçĞÜŞİÖÇ ]+/gu,
       ""
     );
@@ -191,26 +193,12 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
     });
     if (!ok) return;
     const result = await commit((d) => {
-      const p = d.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = p.quotes?.find((x) => x.id === quoteId);
+      const q = d.quotes?.find((x) => x.id === quoteId);
       if (!q) return;
       q.workflowStatus = "contracted";
       q.contractedAt = new Date().toISOString();
     });
     if (result?.ok) toast.success("Sözleşme adımına geçildi");
-    else toast.error("Kaydedilemedi");
-  }
-
-  async function setWorkflowStatus(next) {
-    const result = await commit((d) => {
-      const p = d.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = p.quotes?.find((x) => x.id === quoteId);
-      if (!q) return;
-      q.workflowStatus = next;
-    });
-    if (result?.ok) toast.success("Durum güncellendi");
     else toast.error("Kaydedilemedi");
   }
 
@@ -230,7 +218,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   return (
     <>
       <TopBar
-        title={project.projectName || "Yeni Proje"}
+        title={quote.projectName || "Yeni Teklif"}
         subtitle={`Teklif #${quote.number} · ${WORKFLOW_LABELS[quoteWorkflow(quote)] || ""}`}
         action={
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -260,36 +248,29 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
 
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
         <Card>
-          <CardHeader
-            title="Teklif süreci"
-            subtitle="Kaba tasarım ile teklif verilir; süreç ilerleyince tek tıkta sözleşme durumuna alınır"
-          />
-          <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-            <Field label="Durum">
-              <select
-                className="yk-input-shell-flat w-full"
-                value={quoteWorkflow(quote)}
-                onChange={(e) => setWorkflowStatus(e.target.value)}
-              >
-                {WORKFLOW_ORDER.map((value) => (
-                  <option key={value} value={value}>
-                    {WORKFLOW_LABELS[value]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className="sm:col-span-2 lg:col-span-3 flex flex-wrap gap-2">
+          <CardHeader title="Teklif süreci" subtitle="Aktif, pasif ve sözleşme adımları" />
+          <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs font-semibold text-ink-600">
+              Durum: <span className="text-ink-900">{WORKFLOW_LABELS[quoteWorkflow(quote)] || "Hazırlanıyor"}</span>
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5 min-w-0 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
               <Button
                 variant="dark"
                 size="sm"
+                className="h-9 text-xs shrink-0"
                 icon={FileSignature}
                 onClick={convertToContract}
-                disabled={quoteWorkflow(quote) === "contracted" || quoteWorkflow(quote) === "completed"}
+                disabled={
+                  quoteWorkflow(quote) === "contracted" ||
+                  quoteWorkflow(quote) === "completed"
+                }
               >
                 Sözleşmeye çevir
               </Button>
-              <p className="text-[11px] text-ink-500 self-center max-w-md">
-                PDF başlığı: {pdfDocumentHeading(quote)} — sözleşme adımlarında &quot;Sözleşme&quot; basılır.
+              <p className="text-[10px] leading-snug text-ink-500 sm:min-w-0 line-clamp-2">
+                PDF: <span className="font-medium text-ink-600">{pdfDocumentHeading(quote)}</span>
+                {" — "}
+                Sözleşme aşamasında başlık &quot;Sözleşme&quot; olur.
               </p>
             </div>
           </div>
@@ -326,13 +307,37 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
           />
         </div>
 
-        {/* Müşteri & proje bilgileri */}
+        {/* Müşteri & teklif bilgileri */}
         <Card>
-          <CardHeader title="Proje Bilgileri" subtitle="Müşteri ve sözleşme detayları" />
+          <CardHeader
+            title="Teklif Bilgileri"
+            subtitle="Müşteri ve sözleşme detayları"
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  const was = isProjectActive(quote);
+                  actions.toggleProjectLifecycle(projectId);
+                  toast.success(
+                    was ? "Teklif pasife alındı" : "Teklif aktifleştirildi"
+                  );
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-ink-800 shadow-sm hover:bg-ink-50 active:scale-[0.99] transition"
+                title={isProjectActive(quote) ? "Pasife al" : "Aktifleştir"}
+              >
+                {isProjectActive(quote) ? (
+                  <Power size={14} className="text-emerald-600 shrink-0" aria-hidden />
+                ) : (
+                  <PowerOff size={14} className="text-ink-400 shrink-0" aria-hidden />
+                )}
+                {projectStatusLabel(quote)}
+              </button>
+            }
+          />
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
-            <Field label="Proje adı">
+            <Field label="Teklif adı">
               <TextInput
-                value={project.projectName}
+                value={quote.projectName}
                 onChange={(v) => {
                   actions.updateProject(projectId, (p) => {
                     p.projectName = v;
@@ -343,7 +348,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             </Field>
             <Field label="Müşteri">
               <TextInput
-                value={project.customerName}
+                value={quote.customerName}
                 onChange={(v) => {
                   actions.updateProject(projectId, (p) => {
                     p.customerName = v;
@@ -354,7 +359,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             </Field>
             <Field label="Telefon">
               <TextInput
-                value={project.customerPhone}
+                value={quote.customerPhone}
                 onChange={(v) => {
                   actions.updateProject(projectId, (p) => {
                     p.customerPhone = v;
@@ -366,7 +371,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             </Field>
             <Field label="Adres">
               <TextInput
-                value={project.projectAddress}
+                value={quote.projectAddress}
                 onChange={(v) => {
                   actions.updateProject(projectId, (p) => {
                     p.projectAddress = v;

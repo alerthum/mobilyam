@@ -206,9 +206,9 @@ function mergeManagedUsers(existingUsers, incomingUsers, chamberContext) {
   return [...hiddenUsers, chamberUser, ...producerUsers, ...otherTenantUsers];
 }
 
-function sanitizeProducerProjects(projects, userId) {
-  return (Array.isArray(projects) ? projects : []).map((project) => ({
-    ...clone(project),
+function sanitizeProducerQuotes(quotes, userId) {
+  return (Array.isArray(quotes) ? quotes : []).map((quote) => ({
+    ...clone(quote),
     ownerUserId: userId
   }));
 }
@@ -243,7 +243,7 @@ function filterStateForUser(remoteState, user) {
       chamber: clone(baseState.chamber || {}),
       chambers: clone(Array.isArray(baseState.chambers) ? baseState.chambers : []),
       users: [...clone(sysadmins), ...clone(managedChambers)],
-      projects: [],
+      quotes: [],
       qualities: [],
       hardwarePackages: [],
       servicesCatalog: [],
@@ -277,7 +277,7 @@ function filterStateForUser(remoteState, user) {
           item.role !== "system_admin" &&
           item.chamberId === cid
       ),
-      projects: []
+      quotes: []
     };
   }
 
@@ -288,8 +288,8 @@ function filterStateForUser(remoteState, user) {
     hardwarePackages,
     servicesCatalog,
     users: (baseState.users || []).filter((item) => item.id === user.id),
-    projects: (baseState.projects || []).filter(
-      (project) => project.ownerUserId === user.id && project.chamberId === cid
+    quotes: (baseState.quotes || []).filter(
+      (quote) => quote.ownerUserId === user.id && quote.chamberId === cid
     )
   };
 }
@@ -304,7 +304,7 @@ function mergeStateForUser(existingState, incomingState, user) {
     const mergedInc = migrateInboundState(clone(incomingState || {}));
 
     const nextState = clone(prev);
-    nextState.projects = prev.projects || [];
+    nextState.quotes = prev.quotes || [];
 
     const sysadmins = (prev.users || []).filter((u) => u.role === "system_admin");
     const producers = (prev.users || []).filter((u) => u.role === "producer");
@@ -393,10 +393,10 @@ function mergeStateForUser(existingState, incomingState, user) {
   }
 
   /** producer */
-  nextState.projects = [
-    ...(nextState.projects || []).filter((project) => project.ownerUserId !== user.id),
-    ...sanitizeProducerProjects(inc.projects, user.id).map((p) =>
-      cid ? { ...p, chamberId: p.chamberId || cid } : p
+  nextState.quotes = [
+    ...(nextState.quotes || []).filter((quote) => quote.ownerUserId !== user.id),
+    ...sanitizeProducerQuotes(inc.quotes, user.id).map((q) =>
+      cid ? { ...q, chamberId: q.chamberId || cid } : q
     )
   ];
 

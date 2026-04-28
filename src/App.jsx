@@ -25,7 +25,7 @@ function Router() {
   const user = useCurrentUser();
   const toast = useToast();
   const [view, setView] = useState("home");
-  const [route, setRoute] = useState(null); // {type:"quote", projectId, quoteId}
+  const [route, setRoute] = useState(null); // {type:"quote", quoteId}
   const actions = useProjectActions();
 
   useEffect(() => {
@@ -52,25 +52,26 @@ function Router() {
         toast.warning("Teklif düzenleme yalnızca mobilyacı hesapları içindir.");
         return;
       }
-      setRoute({ type: "quote", projectId, quoteId });
+      setRoute({ type: "quote", quoteId: quoteId || projectId });
     },
     [user?.role, toast]
   );
 
-  const handleCreateProject = useCallback(() => {
+  const handleCreateProject = useCallback(async () => {
     if (user?.role === "system_admin") {
       toast.warning("Sistem yöneticisi teklif veya proje oluşturamaz.");
       return undefined;
     }
-    const id = actions.createProject();
-    const proj = (remote?.projects || []).find((p) => p.id === id);
-    const quote = proj?.quotes?.[0];
-    if (proj && quote) {
-      // Defer one tick so updateRemote applied first, sonra editöre açılır.
-      setTimeout(() => openQuote(proj.id, quote.id), 50);
+    const created = await actions.createProject();
+    if (!created?.ok) {
+      toast.error("Teklif oluşturuldu ama veritabanına kaydedilemedi. Bağlantınızı kontrol edin.");
+      return undefined;
     }
+    const id = created.id;
+    // Defer one tick so updateRemote applied first, sonra editöre açılır.
+    setTimeout(() => openQuote(id, id), 50);
     return id;
-  }, [actions, openQuote, remote, toast, user?.role]);
+  }, [actions, openQuote, toast, user?.role]);
 
   // İlk açılış henüz tamamlanmadı veya oturum yoksa — login
   if (!bootstrapped) {
@@ -93,7 +94,7 @@ function Router() {
   if (route?.type === "quote") {
     content = (
       <QuoteEditorPage
-        projectId={route.projectId}
+        projectId={route.quoteId}
         quoteId={route.quoteId}
         onBack={goHome}
       />
@@ -162,8 +163,8 @@ function Router() {
     setView(next);
   }
 
-  function handleCreate() {
-    handleCreateProject();
+  async function handleCreate() {
+    await handleCreateProject();
   }
 
   return (

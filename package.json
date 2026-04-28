@@ -10,6 +10,7 @@
     "dev:web": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "backup:state": "node scripts/backup-app-state.js",
     "migrate:state": "node scripts/migrate-from-json.js",
     "export:blob": "node scripts/export-blob-state.js"
   },

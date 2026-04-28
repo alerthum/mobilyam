@@ -3,48 +3,60 @@ import clsx from "clsx";
 import { bottomTabsForRole } from "../../config/nav.js";
 import { useCurrentUser } from "../../context/AppContext.jsx";
 
+/**
+ * Mobil alt gezinme — koyu çubuk, oda-seçici ile aynı gradient-ikon dili.
+ * Yükseklik düşük tutulur (ikon ~32px + tek satır etiket).
+ */
 export default function BottomNav({ activeView, onNavigate }) {
   const user = useCurrentUser();
   const tabs = bottomTabsForRole(user?.role);
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-ink-100 yk-safe-bottom"
-      style={{ boxShadow: "0 -10px 28px -16px rgba(11,12,16,0.10)" }}
+      className="lg:hidden fixed bottom-0 inset-x-0 z-[100] yk-safe-bottom"
+      aria-label="Mobil sekme çubuğu"
     >
-      <div className="flex items-stretch justify-around px-1 pt-2 pb-2 max-w-xl mx-auto">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const active = activeView === tab.id;
-          const handleClick = () => onNavigate?.(tab.id);
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={handleClick}
-              className={clsx(
-                "flex-1 flex flex-col items-center gap-1 py-1.5 transition relative",
-                active ? "text-brand-500" : "text-ink-400 hover:text-ink-700"
-              )}
-            >
-              <Icon
-                size={22}
-                strokeWidth={active ? 2.4 : 2}
-                className="transition"
-              />
-              <span
+      <div
+        className="mx-auto max-w-lg border-t border-white/10 bg-gradient-to-b from-[#0c1222] via-[#0a0f1a] to-[#06080f] shadow-[0_-8px_32px_rgba(0,0,0,0.45)]"
+        style={{
+          paddingBottom: "max(env(safe-area-inset-bottom), 0px)"
+        }}
+      >
+        <div className="flex items-end justify-between gap-0.5 px-2 pt-1.5 pb-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeView === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onNavigate?.(tab.id)}
                 className={clsx(
-                  "text-[10px] font-semibold leading-none",
-                  active ? "text-brand-600" : "text-ink-500"
+                  "group flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl py-1 transition active:scale-[0.97]",
+                  active ? "text-white" : "text-slate-500 hover:text-slate-300"
                 )}
               >
-                {tab.label}
-              </span>
-              {active && (
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-brand-500" />
-              )}
-            </button>
-          );
-        })}
+                <span
+                  className={clsx(
+                    "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+                    active
+                      ? "bg-gradient-to-br from-brand-400 via-brand-500 to-brand-700 text-white shadow-md shadow-black/40 ring-1 ring-white/20"
+                      : "bg-white/[0.07] text-slate-400 ring-1 ring-white/5 group-hover:bg-white/10 group-hover:text-slate-200"
+                  )}
+                >
+                  <Icon size={18} strokeWidth={active ? 2.25 : 2} aria-hidden />
+                </span>
+                <span
+                  className={clsx(
+                    "max-w-full truncate px-0.5 text-[8px] font-semibold leading-tight tracking-wide",
+                    active ? "text-slate-100" : "text-slate-500"
+                  )}
+                >
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

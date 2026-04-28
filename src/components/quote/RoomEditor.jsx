@@ -72,27 +72,6 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
         </h2>
       </div>
 
-      {/* Anlık özet KPI'lar */}
-      <div className="grid sm:grid-cols-3 gap-3">
-        <KpiCard
-          label="Toplam m²"
-          value={formatNumber(price.panelEquivalentM2, " m²")}
-          icon={Icon}
-        />
-        <KpiCard
-          label="Kalite tutarı (m²×fiyat)"
-          value={formatCurrency(price.officialPrice)}
-          accent="success"
-          icon={Wallet}
-        />
-        <KpiCard
-          label="m² fiyatı"
-          value={quality ? formatCurrency(quality.officialSqmPrice) : "—"}
-          accent="ink"
-          hint={quality?.name}
-        />
-      </div>
-
       {/* 1) Oda adı */}
       <Card>
         <CardHeader
@@ -147,6 +126,33 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
               onValueChange={(v) => setRoom({ ...room, customHardwarePrice: v })}
             />
           </Field>
+        </div>
+      </Card>
+
+      {/* Toplam kartları (odanın sonunda özet) */}
+      <Card>
+        <CardHeader
+          title="Toplamlar"
+          subtitle="Oda ölçü ve kalite özetini kaydetmeden önce kontrol edin"
+        />
+        <div className="mt-4 grid sm:grid-cols-3 gap-3">
+          <KpiCard
+            label="Toplam m²"
+            value={formatNumber(price.panelEquivalentM2, " m²")}
+            icon={Icon}
+          />
+          <KpiCard
+            label="Kalite tutarı (m²×fiyat)"
+            value={formatCurrency(price.officialPrice)}
+            accent="success"
+            icon={Wallet}
+          />
+          <KpiCard
+            label="m² fiyatı"
+            value={quality ? formatCurrency(quality.officialSqmPrice) : "—"}
+            accent="ink"
+            hint={quality?.name}
+          />
         </div>
       </Card>
 

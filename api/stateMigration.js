@@ -15,6 +15,7 @@ function migrateInboundState(remote) {
   s.chamber = s.chamber && typeof s.chamber === "object" ? { ...s.chamber } : {};
   if (!Array.isArray(s.chamber.broadcasts)) s.chamber.broadcasts = [];
   if (!Array.isArray(s.projects)) s.projects = [];
+  if (!Array.isArray(s.quotes)) s.quotes = [];
   if (!Array.isArray(s.users)) s.users = [];
 
   /* --- chambers[] oluştur (yoksa) --- */
@@ -152,9 +153,60 @@ function migrateInboundState(remote) {
   });
 
   consolidatePrimaryUshakTenant(s);
+  migrateProjectsToStandaloneQuotes(s);
 
   /** API yanıtta kök shim: filtre sırasında doldurulur; tek kaynak chambers[]. */
   return s;
+}
+
+function migrateProjectsToStandaloneQuotes(s) {
+  const existingQuotes = Array.isArray(s.quotes) ? s.quotes : [];
+  const projects = Array.isArray(s.projects) ? s.projects : [];
+
+  const normalizedExisting = existingQuotes.map((q) => ({ ...clone(q) }));
+  if (!projects.length) {
+    s.quotes = normalizedExisting;
+    s.projects = [];
+    return;
+  }
+
+  const flattened = [];
+  projects.forEach((project) => {
+    if (!project) return;
+    const nestedQuotes = Array.isArray(project.quotes) ? project.quotes : [];
+    nestedQuotes.forEach((quote, index) => {
+      if (!quote || typeof quote !== "object") return;
+      const quoteId = quote.id || `QT-${Date.now()}-${index}`;
+      const projectId = project.id || "PRJ-LEGACY";
+      const standaloneId = `Q-${projectId}--${quoteId}`;
+      flattened.push({
+        ...clone(quote),
+        id: standaloneId,
+        legacyProjectId: project.id || null,
+        legacyQuoteId: quote.id || null,
+        ownerUserId: project.ownerUserId || quote.ownerUserId || null,
+        chamberId: project.chamberId || quote.chamberId || DEFAULT_CHAMBER_ID,
+        projectName: project.projectName || quote.projectName || "Yeni Teklif",
+        customerName: project.customerName || quote.customerName || "",
+        customerPhone: project.customerPhone || quote.customerPhone || "",
+        projectAddress: project.projectAddress || quote.projectAddress || "",
+        contractCode: project.contractCode || quote.contractCode || "",
+        merchantName: project.merchantName || quote.merchantName || "",
+        lifecycleStatus: project.status || quote.lifecycleStatus || "active",
+        saved: typeof project.saved === "boolean" ? project.saved : true,
+        number: quote.number || index + 1
+      });
+    });
+  });
+
+  const byId = new Map();
+  [...normalizedExisting, ...flattened].forEach((quote) => {
+    if (!quote?.id) return;
+    byId.set(quote.id, quote);
+  });
+
+  s.quotes = [...byId.values()];
+  s.projects = [];
 }
 
 function uniqCatalog(items, key = "id") {

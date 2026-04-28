@@ -2,7 +2,7 @@ import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import { todayIso } from "../utils/format.js";
 
 /**
- * Proje ve teklif manipülasyon yardımcıları (CRUD).
+ * Teklif manipülasyon yardımcıları (CRUD).
  *
  * Kayıt politikası:
  *  - Yapısal işlemler (create/add/delete/replace) `commit` ile
@@ -15,80 +15,65 @@ export function useProjectActions() {
   const { updateRemote, commit } = useApp();
   const user = useCurrentUser();
 
-  function newProjectId() {
-    return `PRJ-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
-  }
   function newQuoteId() {
     return `QT-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
   }
 
-  function createProject() {
-    const id = newProjectId();
-    commit((draft) => {
-      draft.projects = draft.projects || [];
-      draft.projects.unshift({
+  async function createProject() {
+    const id = newQuoteId();
+    const result = await commit((draft) => {
+      draft.quotes = draft.quotes || [];
+      const ownerId = user?.id || null;
+      const ownerQuotes = draft.quotes.filter((q) => q.ownerUserId === ownerId);
+      const nextNumber =
+        ownerQuotes.reduce((max, q) => Math.max(max, Number(q?.number) || 0), 0) + 1;
+      draft.quotes.unshift({
         id,
-        ownerUserId: user?.id || null,
+        ownerUserId: ownerId,
         chamberId: user?.chamberId || null,
         contractCode: `ODA-${new Date().getFullYear().toString().slice(-2)}${String(
           new Date().getMonth() + 1
         ).padStart(2, "0")}-${Math.floor(Math.random() * 900 + 100)}`,
-        projectName: "Yeni Proje",
+        status: "active",
+        projectName: `Yeni Teklif ${nextNumber}`,
         customerName: "",
         customerPhone: "",
         merchantName: user?.company || user?.fullName || "",
         projectAddress: "",
-        saved: true,
-        quotes: [createQuoteRaw()]
+        rooms: [],
+        services: [],
+        contractServiceLines: [],
+        producerDiscountRate: 0,
+        generalDiscountAmount: 0,
+        notes: "",
+        workflowStatus: "preparing",
+        number: nextNumber,
+        date: todayIso(),
+        lifecycleStatus: "active",
+        saved: true
       });
     });
-    return id;
+    return { id, ok: !!result?.ok, result };
   }
 
-  function createQuoteRaw() {
-    return {
-      id: newQuoteId(),
-      number: 1,
-      date: todayIso(),
-      rooms: [],
-      services: [],
-      contractServiceLines: [],
-      producerDiscountRate: 0,
-      generalDiscountAmount: 0,
-      notes: "",
-      workflowStatus: "preparing"
-    };
-  }
-
-  function addQuote(projectId) {
-    let id;
-    commit((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = createQuoteRaw();
-      id = q.id;
-      q.number = (p.quotes?.length || 0) + 1;
-      p.quotes = p.quotes || [];
-      p.quotes.push(q);
-    });
-    return id;
+  async function addQuote() {
+    return createProject();
   }
 
   // Field güncellemesi: sadece local state. Kaydetmek için kullanıcı
   // ilgili kartın "Güncelle" butonuna basacak.
   function updateProject(projectId, mutator) {
     updateRemote((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      mutator(p);
+      const q = draft.quotes?.find((x) => x.id === projectId);
+      if (!q) return;
+      mutator(q);
     });
   }
 
-  function updateQuote(projectId, quoteId, mutator) {
+  function updateQuote(projectId, quoteId, mutator) { // projectId legacy arg
     updateRemote((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = p.quotes?.find((x) => x.id === quoteId);
+      const targetId = quoteId || projectId;
+      const q = draft.quotes?.find((x) => x.id === targetId);
       if (!q) return;
       mutator(q);
     });
@@ -96,37 +81,48 @@ export function useProjectActions() {
 
   function deleteProject(projectId) {
     commit((draft) => {
-      draft.projects = (draft.projects || []).filter((p) => p.id !== projectId);
+      draft.quotes = (draft.quotes || []).filter((q) => q.id !== projectId);
     });
   }
 
-  function deleteQuote(projectId, quoteId) {
+  /** 'active' | 'inactive' — teklif listelerinde ve ana sayfada filtre için */
+  function setProjectLifecycle(projectId, status) {
     commit((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      p.quotes = (p.quotes || []).filter((q) => q.id !== quoteId);
-      p.quotes.forEach((q, i) => {
-        q.number = i + 1;
-      });
+      const q = draft.quotes?.find((x) => x.id === projectId);
+      if (!q) return;
+      q.lifecycleStatus = status;
     });
   }
 
-  function addRoom(projectId, quoteId, room) {
+  function toggleProjectLifecycle(projectId) {
     commit((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = p.quotes?.find((x) => x.id === quoteId);
+      const q = draft.quotes?.find((x) => x.id === projectId);
+      if (!q) return;
+      q.lifecycleStatus = q.lifecycleStatus === "inactive" ? "active" : "inactive";
+    });
+  }
+
+  function deleteQuote(projectId, quoteId) { // projectId legacy arg
+    commit((draft) => {
+      const targetId = quoteId || projectId;
+      draft.quotes = (draft.quotes || []).filter((q) => q.id !== targetId);
+    });
+  }
+
+  function addRoom(projectId, quoteId, room) { // projectId legacy arg
+    commit((draft) => {
+      const targetId = quoteId || projectId;
+      const q = draft.quotes?.find((x) => x.id === targetId);
       if (!q) return;
       q.rooms = q.rooms || [];
       q.rooms.push(room);
     });
   }
 
-  function updateRoom(projectId, quoteId, roomId, mutator) {
+  function updateRoom(projectId, quoteId, roomId, mutator) { // projectId legacy arg
     updateRemote((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = p.quotes?.find((x) => x.id === quoteId);
+      const targetId = quoteId || projectId;
+      const q = draft.quotes?.find((x) => x.id === targetId);
       if (!q) return;
       const room = q.rooms?.find((r) => r.id === roomId);
       if (!room) return;
@@ -134,21 +130,19 @@ export function useProjectActions() {
     });
   }
 
-  function replaceRoom(projectId, quoteId, roomId, nextRoom) {
+  function replaceRoom(projectId, quoteId, roomId, nextRoom) { // projectId legacy arg
     commit((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = p.quotes?.find((x) => x.id === quoteId);
+      const targetId = quoteId || projectId;
+      const q = draft.quotes?.find((x) => x.id === targetId);
       if (!q) return;
       q.rooms = (q.rooms || []).map((r) => (r.id === roomId ? nextRoom : r));
     });
   }
 
-  function deleteRoom(projectId, quoteId, roomId) {
+  function deleteRoom(projectId, quoteId, roomId) { // projectId legacy arg
     commit((draft) => {
-      const p = draft.projects?.find((x) => x.id === projectId);
-      if (!p) return;
-      const q = p.quotes?.find((x) => x.id === quoteId);
+      const targetId = quoteId || projectId;
+      const q = draft.quotes?.find((x) => x.id === targetId);
       if (!q) return;
       q.rooms = (q.rooms || []).filter((r) => r.id !== roomId);
     });
@@ -164,6 +158,8 @@ export function useProjectActions() {
     addRoom,
     updateRoom,
     replaceRoom,
-    deleteRoom
+    deleteRoom,
+    setProjectLifecycle,
+    toggleProjectLifecycle
   };
 }
