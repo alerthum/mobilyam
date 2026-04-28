@@ -80,7 +80,7 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
           icon={Icon}
         />
         <KpiCard
-          label="Resmi fiyat"
+          label="Kalite tutarı (m²×fiyat)"
           value={formatCurrency(price.officialPrice)}
           accent="success"
           icon={Wallet}
@@ -123,7 +123,12 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
           <QualityPicker
             value={room.selectedQualityId || quality?.id}
             qualities={qualities}
-            calcRoomPrice={(q) => calculateRoomPrice(room, q)}
+            calcRoomPrice={(q) =>
+              calculateRoomPrice(
+                { ...room, customHardwarePrice: 0 },
+                q
+              )
+            }
             onChange={(id) => setRoom({ ...room, selectedQualityId: id })}
           />
         </div>
@@ -133,10 +138,10 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
       <Card>
         <CardHeader
           title="Ek Hırdavat Bedeli"
-          subtitle="Doğrudan toplama eklenir, isteğe bağlıdır"
+          subtitle="Teklif özeti/sözleşmede ayrı satır · kalite tutarlarını değiştirmez"
         />
         <div className="mt-4 max-w-xs">
-          <Field label="Ek hırdavat bedeli" hint="Boş bırakılabilir">
+          <Field label="Ek hırdavat bedeli" hint="Kalite seçimindeki tahmin tutarlarına eklenmez; teklife ayrı kalem olarak eklenir.">
             <MoneyInput
               value={room.customHardwarePrice}
               onValueChange={(v) => setRoom({ ...room, customHardwarePrice: v })}

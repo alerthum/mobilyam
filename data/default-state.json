@@ -7,8 +7,45 @@
     "chamberMarginRate": 0.18,
     "installationMtPrice": 290,
     "packagingSqmPrice": 95,
-    "minimumProfitRate": 0.08
+    "minimumProfitRate": 0.08,
+    "broadcasts": []
   },
+  "chambers": [
+    {
+      "id": "CH-DEFAULT",
+      "chamberName": "UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI",
+      "updatedAt": "07.04.2026",
+      "laborHourlyRate": 485,
+      "overheadRate": 0.12,
+      "chamberMarginRate": 0.18,
+      "installationMtPrice": 290,
+      "packagingSqmPrice": 95,
+      "minimumProfitRate": 0.08,
+      "broadcasts": [],
+      "qualities": [
+        { "id": "mdflam", "name": "MDFLam", "officialSqmPrice": 6000, "note": "Standart oda fiyatı" },
+        { "id": "suntalam", "name": "Suntalam", "officialSqmPrice": 5400, "note": "Ekonomik seri" },
+        { "id": "three-d-panel", "name": "3D Panel", "officialSqmPrice": 7600, "note": "Dekoratif yüzey" },
+        { "id": "glassmax", "name": "Glassmax", "officialSqmPrice": 9800, "note": "Cam efektli yüzey" },
+        { "id": "high-gloss", "name": "High Gloss", "officialSqmPrice": 9200, "note": "Parlak premium seri" },
+        { "id": "akrilik", "name": "Akrilik", "officialSqmPrice": 10800, "note": "Çizilmeye dayanıklı seri" },
+        { "id": "membran", "name": "Membran", "officialSqmPrice": 11800, "note": "Kapak kalıplı seri" },
+        { "id": "lake", "name": "Lake", "officialSqmPrice": 13000, "note": "Lüks seri" }
+      ],
+      "hardwarePackages": [
+        { "id": "basic", "name": "Temel Hırdavat", "hingePrice": 72, "drawerPrice": 420, "railPrice": 170, "handlePrice": 140, "liftPrice": 580, "glassDoorPremium": 260 },
+        { "id": "standard", "name": "Standart Hırdavat", "hingePrice": 96, "drawerPrice": 680, "railPrice": 240, "handlePrice": 220, "liftPrice": 920, "glassDoorPremium": 420 },
+        { "id": "premium", "name": "Premium Hırdavat", "hingePrice": 138, "drawerPrice": 1180, "railPrice": 390, "handlePrice": 365, "liftPrice": 1480, "glassDoorPremium": 620 }
+      ],
+      "servicesCatalog": [
+        { "id": "olcu-servis", "name": "Ölçü Servis Bedeli", "unit": "adet", "price": 1250, "defaultQuantity": 1 },
+        { "id": "tasarim", "name": "Proje Tasarım Bedeli", "unit": "adet", "price": 3500, "defaultQuantity": 1 },
+        { "id": "sokum", "name": "Söküm Bedeli", "unit": "adet", "price": 4200, "defaultQuantity": 0 },
+        { "id": "asansor", "name": "Asansör Bedeli", "unit": "adet", "price": 2500, "defaultQuantity": 0 },
+        { "id": "tezgah", "name": "Tezgah Uygulaması", "unit": "mt", "price": 4250, "defaultQuantity": 0 }
+      ]
+    }
+  ],
   "qualities": [
     { "id": "mdflam", "name": "MDFLam", "officialSqmPrice": 6000, "note": "Standart oda fiyatı" },
     { "id": "suntalam", "name": "Suntalam", "officialSqmPrice": 5400, "note": "Ekonomik seri" },
@@ -48,7 +85,15 @@
       "username": "oda",
       "password": "oda2026",
       "role": "chamber",
+      "chamberId": "CH-DEFAULT",
       "company": "UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI",
+      "phone": "",
+      "addressLine": "",
+      "cityProvince": "",
+      "district": "",
+      "taxOffice": "",
+      "taxNumber": "",
+      "nationalIdMasked": "",
       "status": "active",
       "hiddenFromManagement": false
     },
@@ -58,7 +103,15 @@
       "username": "mobilyaci",
       "password": "mob2026",
       "role": "producer",
+      "chamberId": "CH-DEFAULT",
       "company": "Yokuş Mobilya",
+      "phone": "",
+      "addressLine": "",
+      "cityProvince": "",
+      "district": "",
+      "taxOffice": "",
+      "taxNumber": "",
+      "nationalIdMasked": "",
       "status": "active",
       "licenseStartDate": "2026-04-07",
       "licenseEndDate": "2027-04-07",

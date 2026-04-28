@@ -29,6 +29,7 @@ export function useProjectActions() {
       draft.projects.unshift({
         id,
         ownerUserId: user?.id || null,
+        chamberId: user?.chamberId || null,
         contractCode: `ODA-${new Date().getFullYear().toString().slice(-2)}${String(
           new Date().getMonth() + 1
         ).padStart(2, "0")}-${Math.floor(Math.random() * 900 + 100)}`,
@@ -54,7 +55,8 @@ export function useProjectActions() {
       contractServiceLines: [],
       producerDiscountRate: 0,
       generalDiscountAmount: 0,
-      notes: ""
+      notes: "",
+      workflowStatus: "preparing"
     };
   }
 

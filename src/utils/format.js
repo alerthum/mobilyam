@@ -41,6 +41,13 @@ export function addOneYear(dateValue = todayIso()) {
   return date.toISOString().slice(0, 10);
 }
 
+/** `dateValue` yyyy-mm-dd; `years` tam sayı. */
+export function addYears(dateValue = todayIso(), years = 1) {
+  const date = new Date(`${dateValue}T00:00:00`);
+  date.setFullYear(date.getFullYear() + years);
+  return date.toISOString().slice(0, 10);
+}
+
 export function daysUntil(value) {
   if (!value) return Infinity;
   const current = new Date(`${todayIso()}T00:00:00`);

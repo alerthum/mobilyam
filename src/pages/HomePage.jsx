@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import clsx from "clsx";
 import {
   Plus,
   Folder,
@@ -72,6 +73,61 @@ export default function HomePage({ onCreateProject, onOpenQuote, onOpenProject }
   }
 
   const firstName = user?.fullName ? user.fullName.split(" ")[0] : "";
+  const isChamber = user?.role === "chamber";
+
+  const producerCount = useMemo(() => {
+    if (!remote?.users) return 0;
+    return remote.users.filter(
+      (u) => !u.hiddenFromManagement && u.role === "producer"
+    ).length;
+  }, [remote?.users]);
+
+  if (isChamber) {
+    return (
+      <>
+        <TopBar title="Anasayfa" subtitle="Oda yönetimi" action={null} />
+
+        <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
+          <div className="yk-card-dark p-5 sm:p-6 relative overflow-hidden">
+            <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-brand-500/30 blur-2xl" />
+            <div className="relative">
+              <span className="yk-chip-brand inline-flex">
+                <span>Oda yönetimi{firstName ? ` · ${firstName}` : ""}</span>
+              </span>
+              <h2 className="yk-display text-xl sm:text-2xl mt-3 leading-tight">
+                Üyelerinizi kullanıcı bilgilerinden yönetin
+              </h2>
+              <p className="text-sm text-white/60 mt-2 max-w-lg">
+                Bu ekranda teklif veya proje listesi yok. Kayıtlar menüsünden üyeleri, Duyurular
+                ekranından mesajları, Katalog’dan m² fiyat ve hizmetleri yönetin.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Card padded>
+              <p className="yk-eyebrow">Kayıtlı mobilyacı sayısı</p>
+              <p className="yk-display text-3xl text-ink-900 tabular-nums mt-2">
+                {producerCount}
+              </p>
+            </Card>
+          </div>
+
+          <Card padded={false}>
+            <div className="p-5">
+              <p className="yk-eyebrow">Hızlı erişim</p>
+              <h2 className="yk-display text-lg text-ink-900 mt-1">Menüden devam edin</h2>
+              <p className="text-sm text-ink-500 mt-2 leading-relaxed">
+                <strong>Kayıtlar</strong>: mobilyacı hesapları.{" "}
+                <strong>Duyurular</strong>: üye bildirimleri.{" "}
+                <strong>Katalog</strong>: malzeme m² ve ek hizmet fiyatları.
+              </p>
+            </div>
+          </Card>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -185,11 +241,16 @@ export default function HomePage({ onCreateProject, onOpenQuote, onOpenProject }
   );
 }
 
-function ProjectRow({ project, qualities, onOpen, onDelete }) {
+function ProjectRow({ project, qualities, onOpen, onDelete, readOnly }) {
   const lastQuote = project.quotes?.[project.quotes.length - 1];
   const calc = lastQuote ? calculateQuoteTotals(lastQuote, qualities) : null;
   return (
-    <div className="rounded-xl hover:bg-surface-100 transition flex items-center gap-3 p-3 sm:p-4">
+    <div
+      className={clsx(
+        "rounded-xl flex items-center gap-3 p-3 sm:p-4",
+        readOnly ? "opacity-90" : "hover:bg-surface-100 transition"
+      )}
+    >
       <div className="shrink-0 w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
         <Folder size={18} strokeWidth={2.2} />
       </div>
@@ -199,6 +260,11 @@ function ProjectRow({ project, qualities, onOpen, onDelete }) {
             {project.projectName || "Yeni Proje"}
           </h3>
           <Badge variant="dark">{project.quotes?.length || 0} teklif</Badge>
+          {readOnly && (
+            <Badge variant="default" className="text-[10px]">
+              Salt okunur
+            </Badge>
+          )}
         </div>
         <p className="text-xs text-ink-500 truncate">
           {project.customerName || "—"}{project.customerPhone ? ` · ${project.customerPhone}` : ""}
@@ -210,18 +276,22 @@ function ProjectRow({ project, qualities, onOpen, onDelete }) {
         )}
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        <IconButton
-          icon={ArrowRight}
-          variant="dark"
-          ariaLabel="Aç"
-          onClick={onOpen}
-        />
-        <IconButton
-          icon={Trash2}
-          variant="danger"
-          ariaLabel="Sil"
-          onClick={onDelete}
-        />
+        {!readOnly && (
+          <>
+            <IconButton
+              icon={ArrowRight}
+              variant="dark"
+              ariaLabel="Aç"
+              onClick={onOpen}
+            />
+            <IconButton
+              icon={Trash2}
+              variant="danger"
+              ariaLabel="Sil"
+              onClick={onDelete}
+            />
+          </>
+        )}
       </div>
     </div>
   );

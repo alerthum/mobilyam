@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { bottomTabsForRole } from "../../config/nav.js";
 import { useCurrentUser } from "../../context/AppContext.jsx";
 
-export default function BottomNav({ activeView, onNavigate, onCreate }) {
+export default function BottomNav({ activeView, onNavigate }) {
   const user = useCurrentUser();
   const tabs = bottomTabsForRole(user?.role);
   return (
@@ -14,12 +14,8 @@ export default function BottomNav({ activeView, onNavigate, onCreate }) {
       <div className="flex items-stretch justify-around px-1 pt-2 pb-2 max-w-xl mx-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isCreate = tab.id === "create";
           const active = activeView === tab.id;
-          const handleClick = () => {
-            if (isCreate) onCreate?.();
-            else onNavigate?.(tab.id);
-          };
+          const handleClick = () => onNavigate?.(tab.id);
           return (
             <button
               key={tab.id}

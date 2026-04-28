@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { neon } = require("@neondatabase/serverless");
+const { migrateInboundState } = require("./stateMigration");
 
 function repairString(value) {
   if (!/[\u00C3\u00C5\u00C4\u00E2]/.test(value)) return value;
@@ -51,7 +52,7 @@ async function readPostgresState(databaseUrl) {
   const rows = await sql`SELECT payload FROM app_state WHERE id = 'main' LIMIT 1`;
 
   if (!rows.length) {
-    const seed = readSeedState();
+    const seed = migrateInboundState(readSeedState());
     await sql`
       INSERT INTO app_state (id, payload, updated_at)
       VALUES ('main', ${JSON.stringify(seed)}::jsonb, NOW())
@@ -59,7 +60,10 @@ async function readPostgresState(databaseUrl) {
     return { data: seed, storageMode: "live" };
   }
 
-  return { data: repairPayload(rows[0].payload), storageMode: "live" };
+  return {
+    data: migrateInboundState(repairPayload(rows[0].payload)),
+    storageMode: "live"
+  };
 }
 
 async function writePostgresState(databaseUrl, nextState) {
@@ -81,18 +85,19 @@ async function getRemoteState() {
       return await readPostgresState(databaseUrl);
     } catch (error) {
       console.warn("[state] Veritabani okunamadi, yerel demo veriye dusuluyor:", error.message);
-      return { data: readSeedState(), storageMode: "demo" };
+      return { data: migrateInboundState(readSeedState()), storageMode: "demo" };
     }
   }
 
-  return { data: readSeedState(), storageMode: "demo" };
+  return { data: migrateInboundState(readSeedState()), storageMode: "demo" };
 }
 
 async function saveRemoteState(nextState) {
+  const patched = migrateInboundState(nextState);
   const databaseUrl = getDatabaseUrl();
   if (databaseUrl) {
     try {
-      await writePostgresState(databaseUrl, nextState);
+      await writePostgresState(databaseUrl, patched);
       return { ok: true, storageMode: "live" };
     } catch (error) {
       console.warn("[state] Veritabanina yazilamadi:", error.message);

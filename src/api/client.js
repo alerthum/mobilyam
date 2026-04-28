@@ -11,7 +11,8 @@ function getEmptyState() {
   return {
     chamber: {
       chamberName: "UŞAK MARANGOZLAR ESNAF VE SANATKARLAR ODASI",
-      updatedAt: ""
+      updatedAt: "",
+      broadcasts: []
     },
     qualities: [],
     hardwarePackages: [],

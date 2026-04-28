@@ -340,10 +340,14 @@ export function calculateRoomMetrics(room) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Bir oda için fiyat:
- *   resmi fiyat = m² × kalite m² fiyatı
- *   + ek hırdavat bedeli (varsa, manuel girilen)
- *   + cam ek (gardırop için)
+ * Bir oda için fiyat kalemleri:
+ *
+ * - Baz (resmi oda kalemi): yalnızca m² × kalite birim fiyatı (`officialPrice` =
+ *   `baseOfficial`). Cam, ek hırdavat ile aynı mantıkta ayrı kalem; ek hırdavat
+ *   ve cam bu tutarı değiştirmez (teklif toplamında ayrı satırlar).
+ *
+ * - `customHardware`: manuel ek hırdavat; tekli oda özeti bileşen olarak döner,
+ *   teklifte `hardwareExtrasTotal` altında toplanır.
  */
 export function calculateRoomPrice(room, quality) {
   const metrics = calculateRoomMetrics(room);
@@ -352,7 +356,7 @@ export function calculateRoomPrice(room, quality) {
   const customHardware = Math.max(0, num(room.customHardwarePrice));
   const glassExtra = num(metrics.glassExtra);
 
-  const officialPrice = baseOfficial + customHardware + glassExtra;
+  const officialPrice = round(baseOfficial, 2);
 
   return {
     qualityId: quality?.id ?? null,
@@ -362,7 +366,7 @@ export function calculateRoomPrice(room, quality) {
     baseOfficial: round(baseOfficial, 2),
     customHardware: round(customHardware, 2),
     glassExtra: round(glassExtra, 2),
-    officialPrice: round(officialPrice, 2),
+    officialPrice,
     metrics
   };
 }
@@ -381,8 +385,13 @@ export function calculateQuoteTotals(quote, qualities) {
     return { room, price };
   });
 
-  const officialRoomTotal = rooms.reduce(
-    (acc, r) => acc + r.price.officialPrice,
+  /** Sadece m² × kalite (cam ve ek hırdavat hariç) */
+  const officialRoomTotal = rooms.reduce((acc, r) => acc + r.price.baseOfficial, 0);
+
+  const glassExtrasTotal = rooms.reduce((acc, r) => acc + r.price.glassExtra, 0);
+
+  const hardwareExtrasTotal = rooms.reduce(
+    (acc, r) => acc + r.price.customHardware,
     0
   );
 
@@ -392,20 +401,26 @@ export function calculateQuoteTotals(quote, qualities) {
   }));
   const servicesTotal = services.reduce((acc, s) => acc + s.total, 0);
 
-  const officialGrandTotal = officialRoomTotal + servicesTotal;
+  /* Brüt: m²×kalite + cam + ek hırdavat + ek hizmetler */
+  const officialGrandTotal =
+    officialRoomTotal + glassExtrasTotal + hardwareExtrasTotal + servicesTotal;
   const rate = Math.min(100, Math.max(0, num(quote.producerDiscountRate)));
-  const producerDiscount = officialRoomTotal * (rate / 100);
+  /** Üretici indirimi: brüt üzerinden (indirimsiz tek satır tutarı). */
+  const producerDiscount = officialGrandTotal * (rate / 100);
+  const afterProducer = officialGrandTotal - producerDiscount;
   const generalDiscount = Math.max(
     0,
-    Math.min(officialGrandTotal - producerDiscount, num(quote.generalDiscountAmount))
+    Math.min(afterProducer, num(quote.generalDiscountAmount))
   );
-  const dealerGrandTotal = officialGrandTotal - producerDiscount - generalDiscount;
+  const dealerGrandTotal = afterProducer - generalDiscount;
 
   return {
     rooms,
     services,
     totals: {
       officialRoomTotal: round(officialRoomTotal, 2),
+      glassExtrasTotal: round(glassExtrasTotal, 2),
+      hardwareExtrasTotal: round(hardwareExtrasTotal, 2),
       servicesTotal: round(servicesTotal, 2),
       officialGrandTotal: round(officialGrandTotal, 2),
       producerDiscount: round(producerDiscount, 2),

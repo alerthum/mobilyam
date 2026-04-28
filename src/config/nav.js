@@ -3,47 +3,33 @@ import {
   Tags,
   FileSignature,
   User,
-  PlusCircle,
   Users as UsersIcon,
   LayoutDashboard,
-  Settings
+  Settings,
+  BarChart3
 } from "lucide-react";
 
 /**
- * Mobil tab bar — Coffy minimal stil. Role bazlı filtrelenir.
- *  - chamber (oda yönetimi) için: Anasayfa, Kullanıcılar, Hesabım
- *  - producer / system_admin için: Anasayfa, Fiyatlar, Yeni, Sözleşme, Hesabım
+ * Mobil tab bar — role bazlı izolasyon.
+ * system_admin: kayıtlar + profil | chamber: kayıtlar + duyuru + katalog + profil | producer: tam operasyon
  */
 export const BOTTOM_TABS = [
   {
-    id: "home",
-    label: "Anasayfa",
-    icon: Home,
-    roles: ["producer", "chamber", "system_admin"]
-  },
-  {
-    id: "prices",
-    label: "Fiyatlar",
-    icon: Tags,
-    roles: ["producer", "system_admin"]
-  },
-  {
     id: "users",
-    label: "Üyeler",
+    label: "Kayıtlar",
     icon: UsersIcon,
-    roles: ["chamber"]
+    roles: ["system_admin", "chamber"]
   },
+  { id: "dashboard", label: "Duyurular", icon: LayoutDashboard, roles: ["chamber"] },
+  { id: "settings", label: "Katalog", icon: Settings, roles: ["chamber"] },
+  { id: "home", label: "Anasayfa", icon: Home, roles: ["producer"] },
+  { id: "prices", label: "Fiyatlar", icon: Tags, roles: ["producer"] },
+  { id: "contracts", label: "Teklifler", icon: FileSignature, roles: ["producer"] },
   {
-    id: "create",
-    label: "Yeni",
-    icon: PlusCircle,
-    roles: ["producer", "system_admin"]
-  },
-  {
-    id: "contracts",
-    label: "Sözleşme",
-    icon: FileSignature,
-    roles: ["producer", "system_admin"]
+    id: "producerInsights",
+    label: "Özet",
+    icon: BarChart3,
+    roles: ["producer"]
   },
   {
     id: "profile",
@@ -54,20 +40,28 @@ export const BOTTOM_TABS = [
 ];
 
 export function bottomTabsForRole(role) {
-  return BOTTOM_TABS.filter((tab) =>
-    tab.roles.includes(role || "producer")
-  );
+  return BOTTOM_TABS.filter((tab) => tab.roles.includes(role || "producer"));
 }
 
-/** Masaüstü kenar çubuğu — role bazlı erişim */
 export const SIDEBAR_NAV = [
-  { id: "home", label: "Ana Sayfa", icon: Home, roles: ["producer", "chamber", "system_admin"] },
-  { id: "prices", label: "Fiyatlar", icon: Tags, roles: ["producer", "system_admin"] },
-  { id: "contracts", label: "Sözleşmeler", icon: FileSignature, roles: ["producer", "system_admin"] },
-  { id: "users", label: "Kullanıcılar", icon: UsersIcon, roles: ["chamber", "system_admin"] },
-  { id: "dashboard", label: "Özet", icon: LayoutDashboard, roles: ["chamber", "system_admin"] },
-  { id: "profile", label: "Profil", icon: User, roles: ["producer", "chamber", "system_admin"] },
-  { id: "settings", label: "Ayarlar", icon: Settings, roles: ["chamber", "system_admin"] }
+  {
+    id: "users",
+    label: "Kayıtlar",
+    icon: UsersIcon,
+    roles: ["system_admin", "chamber"]
+  },
+  { id: "home", label: "Ana Sayfa", icon: Home, roles: ["producer"] },
+  { id: "prices", label: "Fiyatlar", icon: Tags, roles: ["producer"] },
+  { id: "contracts", label: "Teklifler", icon: FileSignature, roles: ["producer"] },
+  {
+    id: "producerInsights",
+    label: "Özet",
+    icon: BarChart3,
+    roles: ["producer"]
+  },
+  { id: "dashboard", label: "Duyurular", icon: LayoutDashboard, roles: ["chamber"] },
+  { id: "settings", label: "Malzeme ve hizmet", icon: Settings, roles: ["chamber"] },
+  { id: "profile", label: "Profil", icon: User, roles: ["producer", "chamber", "system_admin"] }
 ];
 
 export function navItemsForRole(role) {

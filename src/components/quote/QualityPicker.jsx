@@ -6,10 +6,8 @@ import { formatCurrency } from "../../utils/format.js";
 /**
  * Görsel kalite seçimi — dropdown yerine kart bazlı seçim.
  *
- * Eğer `room` prop'u verilirse, her kalite kartında o odanın o kaliteyle
- * hesaplanmış tahmini fiyatı da gösterilir (m² × kalite fiyatı + ek hırdavat
- * + cam ek). Böylece kullanıcı m² girer girmez tüm kaliteleri tek bakışta
- * karşılaştırabilir.
+ * Her kalitede “Bu oda” tutarı: yalnızca m² × o kalitenin birim fiyatı (`baseOfficial`).
+ * Ek hırdavat ayrı satır; bu kartlar hırdavat girilse bile sadece kalite×m² gösterir.
  */
 export default function QualityPicker({ value, onChange, qualities, calcRoomPrice }) {
   if (!qualities?.length) {
@@ -65,7 +63,7 @@ export default function QualityPicker({ value, onChange, qualities, calcRoomPric
               >
                 <p className="yk-eyebrow leading-none">Bu oda</p>
                 <p className="yk-display text-base mt-1 tabular-nums leading-none">
-                  {formatCurrency(priceForRoom.officialPrice)}
+                  {formatCurrency(priceForRoom.baseOfficial)}
                 </p>
                 <p className="text-[10px] text-ink-500 mt-1 tabular-nums">
                   {priceForRoom.panelEquivalentM2.toLocaleString("tr-TR", {
