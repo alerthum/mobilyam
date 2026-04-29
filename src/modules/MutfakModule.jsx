@@ -12,7 +12,8 @@ const FIELDS = [
   { key: "buzDolapEn", label: "Buzdolabı dolabı eni", suffix: "cm" },
   { key: "buzYanakAdet", label: "Buzdolabı yanak", suffix: "adet", integer: true },
   { key: "ustKorMesafe", label: "Üst kör mesafesi", suffix: "cm" },
-  { key: "altKorMesafe", label: "Alt kör mesafesi", suffix: "cm" }
+  { key: "altKorMesafe", label: "Alt kör mesafesi", suffix: "cm" },
+  { key: "tezgahM2", label: "Tezgah m² (bilgi)", suffix: "m²" }
 ];
 
 export default function MutfakModule({ room, onChange }) {

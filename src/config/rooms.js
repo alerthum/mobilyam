@@ -101,7 +101,8 @@ export function createRoom(type, options = {}) {
           buzDolapEn: 0,
           buzYanakAdet: 0,
           ustKorMesafe: 0,
-          altKorMesafe: 0
+          altKorMesafe: 0,
+          tezgahM2: 0
         }
       };
     case "banyo":
