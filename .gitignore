@@ -9,3 +9,5 @@ inc/
 .env*.local
 mobilya-state-backup.json
 *.xlsm
+Notlar24042026txt.txt
+backups/app-state-pre-quotes-migration-2026-04-28T17-53-51-649Z.json

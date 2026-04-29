@@ -393,12 +393,24 @@ function mergeStateForUser(existingState, incomingState, user) {
   }
 
   /** producer */
-  nextState.quotes = [
-    ...(nextState.quotes || []).filter((quote) => quote.ownerUserId !== user.id),
-    ...sanitizeProducerQuotes(inc.quotes, user.id).map((q) =>
-      cid ? { ...q, chamberId: q.chamberId || cid } : q
-    )
-  ];
+  const existingQuotes = Array.isArray(nextState.quotes) ? nextState.quotes : [];
+  const otherOwnersQuotes = existingQuotes.filter((quote) => quote.ownerUserId !== user.id);
+  const currentOwnerQuotes = existingQuotes.filter((quote) => quote.ownerUserId === user.id);
+  const incomingOwnerQuotes = sanitizeProducerQuotes(inc.quotes, user.id).map((q) =>
+    cid ? { ...q, chamberId: q.chamberId || cid } : q
+  );
+
+  /**
+   * Güvenlik kuralı:
+   * - Gelen payload'da quotes boşsa (ör. stale/bozuk istemci state), mevcut owner tekliflerini silme.
+   * - Böylece teklifler "bir anda sıfırlandı" vakasını engelleriz.
+   */
+  const nextOwnerQuotes =
+    incomingOwnerQuotes.length === 0 && currentOwnerQuotes.length > 0
+      ? currentOwnerQuotes
+      : incomingOwnerQuotes;
+
+  nextState.quotes = [...otherOwnersQuotes, ...nextOwnerQuotes];
 
   const selfPatch = inc.users?.find((u) => u.id === user.id);
   if (

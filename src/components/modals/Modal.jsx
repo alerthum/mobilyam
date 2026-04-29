@@ -43,7 +43,7 @@ export default function Modal({
           : "max-w-md";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center">
       <div
         className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm yk-animate-fade"
         onClick={() => closeOnBackdrop && onClose?.()}
