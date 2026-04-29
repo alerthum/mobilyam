@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import clsx from "clsx";
 import {
   AlertCircle,
@@ -61,6 +61,32 @@ export default function ChamberBroadcastDock() {
   }, [remote?.chamber?.broadcasts, user?.role, user?.id, user?.dismissedBroadcastIds]);
 
   if (!items.length) return null;
+
+  useEffect(() => {
+    if (!user?.id || !items.length) return;
+    const openIds = new Set(items.map((b) => b.id));
+    const currentViews = Array.isArray(user.broadcastViews) ? user.broadcastViews : [];
+    const missing = [...openIds].filter(
+      (id) => !currentViews.some((v) => v?.broadcastId === id)
+    );
+    if (!missing.length) return;
+    commit((d) => {
+      d.users ??= [];
+      const me = d.users.find((x) => x.id === user.id);
+      const baseViews = Array.isArray(me?.broadcastViews) ? [...me.broadcastViews] : [];
+      const now = new Date().toISOString();
+      missing.forEach((id) => {
+        if (!baseViews.some((v) => v?.broadcastId === id)) {
+          baseViews.push({ broadcastId: id, seenAt: now });
+        }
+      });
+      const updated = me
+        ? { ...me, broadcastViews: baseViews }
+        : { ...(user || {}), id: user.id, broadcastViews: baseViews };
+      d.users = (d.users || []).map((x) => (x.id === user.id ? updated : x));
+      if (!d.users.some((x) => x.id === user.id)) d.users.push(updated);
+    });
+  }, [commit, items, user]);
 
   async function dismiss(id) {
     await commit((d) => {

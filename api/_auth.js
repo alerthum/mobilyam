@@ -150,7 +150,8 @@ function sanitizeManagedUser(user, chamberContext) {
     nationalIdMasked: user.nationalIdMasked ?? "",
     status: user.status === "passive" ? "passive" : "active",
     hiddenFromManagement: false,
-    dismissedBroadcastIds: Array.isArray(user.dismissedBroadcastIds) ? [...user.dismissedBroadcastIds] : []
+    dismissedBroadcastIds: Array.isArray(user.dismissedBroadcastIds) ? [...user.dismissedBroadcastIds] : [],
+    broadcastViews: Array.isArray(user.broadcastViews) ? clone(user.broadcastViews) : []
   };
 
   if (role === "producer") {
@@ -421,6 +422,17 @@ function mergeStateForUser(existingState, incomingState, user) {
     nextState.users = nextState.users.map((u) =>
       u.id === user.id
         ? { ...u, dismissedBroadcastIds: [...selfPatch.dismissedBroadcastIds] }
+        : u
+    );
+  }
+  if (
+    selfPatch &&
+    Array.isArray(selfPatch.broadcastViews) &&
+    Array.isArray(nextState.users)
+  ) {
+    nextState.users = nextState.users.map((u) =>
+      u.id === user.id
+        ? { ...u, broadcastViews: clone(selfPatch.broadcastViews) }
         : u
     );
   }

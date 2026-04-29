@@ -157,11 +157,17 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
       </Card>
 
       {/* 5) Aksiyon */}
-      <div className="sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom))] sm:bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:py-3 bg-white/90 backdrop-blur border-t border-ink-100 flex flex-col sm:flex-row gap-2 sm:justify-end">
-        <Button variant="ghost" size="lg" onClick={onCancel}>
+      <div className="sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-white/95 backdrop-blur border-t border-ink-100 flex flex-row items-center justify-between gap-2">
+        <Button variant="ghost" size="lg" onClick={onCancel} className="flex-1 sm:flex-none">
           Vazgeç
         </Button>
-        <Button variant="primary" size="lg" icon={Save} onClick={() => onSave(room)}>
+        <Button
+          variant="primary"
+          size="lg"
+          icon={Save}
+          onClick={() => onSave(room)}
+          className="flex-1 sm:flex-none"
+        >
           Odayı Kaydet
         </Button>
       </div>

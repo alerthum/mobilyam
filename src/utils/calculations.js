@@ -405,14 +405,14 @@ export function calculateQuoteTotals(quote, qualities) {
   const officialGrandTotal =
     officialRoomTotal + glassExtrasTotal + hardwareExtrasTotal + servicesTotal;
   const rate = Math.min(100, Math.max(0, num(quote.producerDiscountRate)));
-  /** Üretici indirimi: brüt üzerinden (indirimsiz tek satır tutarı). */
   const producerDiscount = officialGrandTotal * (rate / 100);
-  const afterProducer = officialGrandTotal - producerDiscount;
-  const generalDiscount = Math.max(
+  const manualDiscount = Math.max(
     0,
-    Math.min(afterProducer, num(quote.generalDiscountAmount))
+    Math.min(officialGrandTotal, num(quote.generalDiscountAmount))
   );
-  const dealerGrandTotal = afterProducer - generalDiscount;
+  /** Oran ve tutar alanları senkron kullanılabildiği için tek etkin indirim uygulanır. */
+  const totalDiscount = Math.max(producerDiscount, manualDiscount);
+  const dealerGrandTotal = officialGrandTotal - totalDiscount;
 
   return {
     rooms,
@@ -424,8 +424,8 @@ export function calculateQuoteTotals(quote, qualities) {
       servicesTotal: round(servicesTotal, 2),
       officialGrandTotal: round(officialGrandTotal, 2),
       producerDiscount: round(producerDiscount, 2),
-      generalDiscount: round(generalDiscount, 2),
-      totalDiscount: round(producerDiscount + generalDiscount, 2),
+      generalDiscount: round(manualDiscount, 2),
+      totalDiscount: round(totalDiscount, 2),
       dealerGrandTotal: round(dealerGrandTotal, 2)
     }
   };

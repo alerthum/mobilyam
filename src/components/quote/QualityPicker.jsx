@@ -32,24 +32,24 @@ export default function QualityPicker({ value, onChange, qualities, calcRoomPric
             className={clsx(
               "rounded-xl border bg-white p-3 text-left transition active:scale-[0.99] flex flex-col gap-2",
               active
-                ? "border-brand-500 ring-4 ring-brand-50"
-                : "border-ink-100 hover:border-ink-200"
+                ? "border-brand-500 ring-4 ring-brand-50 bg-white"
+                : "border-brand-300 hover:border-brand-400"
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold text-ink-900 truncate">
+              <span className="text-sm font-bold text-danger-600 truncate">
                 {q.name}
               </span>
               {active && (
-                <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-500 text-white">
+                <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-500 text-white shadow-sm">
                   <Check size={12} strokeWidth={3} />
                 </span>
               )}
             </div>
 
-            <p className="text-xs font-semibold text-ink-500 tabular-nums">
+            <p className={clsx("text-xs font-semibold tabular-nums", active ? "text-brand-700" : "text-ink-600")}>
               {formatCurrency(q.officialSqmPrice)}{" "}
-              <span className="text-ink-400 font-medium">/ m²</span>
+              <span className={clsx("font-medium", active ? "text-brand-600" : "text-ink-400")}>/ m²</span>
             </p>
 
             {showRoomTotal ? (
@@ -57,7 +57,7 @@ export default function QualityPicker({ value, onChange, qualities, calcRoomPric
                 className={clsx(
                   "rounded-lg px-2.5 py-2 mt-auto",
                   active
-                    ? "bg-brand-50 text-brand-700"
+                    ? "bg-brand-50 text-brand-700 border border-brand-200"
                     : "bg-surface-100 text-ink-900"
                 )}
               >
@@ -65,7 +65,12 @@ export default function QualityPicker({ value, onChange, qualities, calcRoomPric
                 <p className="yk-display text-base mt-1 tabular-nums leading-none">
                   {formatCurrency(priceForRoom.baseOfficial)}
                 </p>
-                <p className="text-[10px] text-ink-500 mt-1 tabular-nums">
+                <p
+                  className={clsx(
+                    "text-[10px] mt-1 tabular-nums",
+                    active ? "text-brand-600" : "text-ink-500"
+                  )}
+                >
                   {priceForRoom.panelEquivalentM2.toLocaleString("tr-TR", {
                     maximumFractionDigits: 2
                   })}{" "}

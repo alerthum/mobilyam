@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Plus,
+  Minus,
   Wallet,
   Layers3,
   Receipt,
@@ -12,7 +13,9 @@ import {
   Save,
   CheckCircle2,
   Power,
-  PowerOff
+  PowerOff,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import Modal from "../components/modals/Modal.jsx";
 import RoomTypePicker from "../components/quote/RoomTypePicker.jsx";
@@ -52,18 +55,28 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [servicePickerOpen, setServicePickerOpen] = useState(false);
   const [editorRoom, setEditorRoom] = useState(null);
 
   // Dirty takibi: aktif kart değişikliğinden sonra kullanıcı "Güncelle"
   // butonuna basana kadar bayrak true tutulur. Save sonrası temizlenir.
   const [projectDirty, setProjectDirty] = useState(false);
   const [discountDirty, setDiscountDirty] = useState(false);
+  const [serviceDirty, setServiceDirty] = useState(false);
+  const [sectionsOpen, setSectionsOpen] = useState({
+    info: true,
+    rooms: true,
+    services: false,
+    discount: false,
+    flow: false
+  });
   const pdfHolderRef = useRef(null);
   const saving = saveStatus === "saving";
 
   const quote = remote?.quotes?.find((q) => q.id === quoteId);
   const project = quote;
   const qualities = remote?.qualities || [];
+  const servicesCatalog = remote?.servicesCatalog || [];
 
   const calc = useMemo(() => {
     if (!quote) return null;
@@ -81,7 +94,29 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   useEffect(() => {
     setProjectDirty(false);
     setDiscountDirty(false);
+    setServiceDirty(false);
   }, [projectId, quoteId]);
+
+  useEffect(() => {
+    const hasSavedContent = Boolean(
+      (quote?.rooms?.length || 0) > 0 ||
+      (quote?.services?.length || 0) > 0 ||
+      quote?.customerName ||
+      quote?.customerPhone ||
+      quote?.projectAddress
+    );
+    setSectionsOpen({
+      info: !hasSavedContent,
+      rooms: true,
+      services: false,
+      discount: false,
+      flow: false
+    });
+  }, [quoteId]);
+
+  function toggleSection(key) {
+    setSectionsOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
 
   async function saveProjectInfo() {
     if (!projectDirty || saving) return;
@@ -99,10 +134,73 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
     const result = await saveNow();
     if (result?.ok) {
       setDiscountDirty(false);
+      setServiceDirty(false);
       toast.success("İndirim güncellendi");
     } else {
       toast.error("Kayıt başarısız oldu");
     }
+  }
+
+  async function saveServices() {
+    if (!serviceDirty || saving) return;
+    const result = await saveNow();
+    if (result?.ok) {
+      setServiceDirty(false);
+      setDiscountDirty(false);
+      toast.success("Ek hizmetler güncellendi");
+    } else {
+      toast.error("Kayıt başarısız oldu");
+    }
+  }
+
+  function syncDiscountFromRate(nextRate) {
+    const gross = calc?.totals?.officialGrandTotal || 0;
+    const syncedAmount = (gross * Math.max(0, Math.min(100, nextRate))) / 100;
+    actions.updateQuote(projectId, quoteId, (q) => {
+      q.producerDiscountRate = nextRate;
+      q.generalDiscountAmount = Number(syncedAmount.toFixed(2));
+    });
+    setDiscountDirty(true);
+  }
+
+  function syncDiscountFromAmount(nextAmount) {
+    const gross = calc?.totals?.officialGrandTotal || 0;
+    const clamped = Math.max(0, Math.min(gross, nextAmount));
+    const syncedRate = gross > 0 ? (clamped / gross) * 100 : 0;
+    actions.updateQuote(projectId, quoteId, (q) => {
+      q.generalDiscountAmount = Number(clamped.toFixed(2));
+      q.producerDiscountRate = Number(syncedRate.toFixed(2));
+    });
+    setDiscountDirty(true);
+  }
+
+  function addServiceLine(service) {
+    actions.updateQuote(projectId, quoteId, (q) => {
+      q.services = Array.isArray(q.services) ? q.services : [];
+      const existing = q.services.find((s) => s.id === service.id);
+      if (existing) {
+        existing.quantity = (Number(existing.quantity) || 0) + 1;
+      } else {
+        q.services.push({
+          id: service.id,
+          name: service.name,
+          unit: service.unit || "adet",
+          price: Number(service.price) || 0,
+          quantity: Number(service.defaultQuantity) > 0 ? Number(service.defaultQuantity) : 1
+        });
+      }
+    });
+    setServiceDirty(true);
+  }
+
+  function updateServiceQty(serviceId, nextQty) {
+    const qty = Math.max(0, Number(nextQty) || 0);
+    actions.updateQuote(projectId, quoteId, (q) => {
+      q.services = (q.services || [])
+        .map((s) => (s.id === serviceId ? { ...s, quantity: qty } : s))
+        .filter((s) => (Number(s.quantity) || 0) > 0);
+    });
+    setServiceDirty(true);
   }
 
   if (!project || !quote) {
@@ -247,51 +345,10 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
       </div>
 
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
-        <Card>
-          <CardHeader title="Teklif süreci" subtitle="Aktif, pasif ve sözleşme adımları" />
-          <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs font-semibold text-ink-600">
-              Durum: <span className="text-ink-900">{WORKFLOW_LABELS[quoteWorkflow(quote)] || "Hazırlanıyor"}</span>
-            </div>
-            <div className="flex flex-1 flex-col gap-1.5 min-w-0 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-              <Button
-                variant="dark"
-                size="sm"
-                className="h-9 text-xs shrink-0"
-                icon={FileSignature}
-                onClick={convertToContract}
-                disabled={
-                  quoteWorkflow(quote) === "contracted" ||
-                  quoteWorkflow(quote) === "completed"
-                }
-              >
-                Sözleşmeye çevir
-              </Button>
-              <p className="text-[10px] leading-snug text-ink-500 sm:min-w-0 line-clamp-2">
-                PDF: <span className="font-medium text-ink-600">{pdfDocumentHeading(quote)}</span>
-                {" — "}
-                Sözleşme aşamasında başlık &quot;Sözleşme&quot; olur.
-              </p>
-            </div>
-          </div>
-        </Card>
-
         {/* KPI'lar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
-            label="Toplam"
-            value={formatCurrency(calc.totals.dealerGrandTotal)}
-            icon={Wallet}
-            accent="brand"
-          />
-          <KpiCard
-            label="Resmi fiyat"
-            value={formatCurrency(calc.totals.officialGrandTotal)}
-            icon={Receipt}
-            accent="ink"
-          />
-          <KpiCard
-            label="Toplam alan"
+            label="Toplam Alan"
             value={formatNumber(
               calc.rooms.reduce((s, r) => s + r.price.panelEquivalentM2, 0),
               " m²"
@@ -300,10 +357,22 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             accent="success"
           />
           <KpiCard
-            label="İndirim"
+            label="Genel Toplam"
+            value={formatCurrency(calc.totals.officialGrandTotal)}
+            icon={Receipt}
+            accent="ink"
+          />
+          <KpiCard
+            label="İndirim Tutarı"
             value={formatCurrency(calc.totals.totalDiscount)}
             accent="warning"
             icon={Plus}
+          />
+          <KpiCard
+            label="Net Tutar"
+            value={formatCurrency(calc.totals.dealerGrandTotal)}
+            icon={Wallet}
+            accent="brand"
           />
         </div>
 
@@ -313,27 +382,37 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             title="Teklif Bilgileri"
             subtitle="Müşteri ve sözleşme detayları"
             action={
-              <button
-                type="button"
-                onClick={() => {
-                  const was = isProjectActive(quote);
-                  actions.toggleProjectLifecycle(projectId);
-                  toast.success(
-                    was ? "Teklif pasife alındı" : "Teklif aktifleştirildi"
-                  );
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-ink-800 shadow-sm hover:bg-ink-50 active:scale-[0.99] transition"
-                title={isProjectActive(quote) ? "Pasife al" : "Aktifleştir"}
-              >
-                {isProjectActive(quote) ? (
-                  <Power size={14} className="text-emerald-600 shrink-0" aria-hidden />
-                ) : (
-                  <PowerOff size={14} className="text-ink-400 shrink-0" aria-hidden />
-                )}
-                {projectStatusLabel(quote)}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const was = isProjectActive(quote);
+                    actions.toggleProjectLifecycle(projectId);
+                    toast.success(
+                      was ? "Teklif pasife alındı" : "Teklif aktifleştirildi"
+                    );
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-ink-800 shadow-sm hover:bg-ink-50 active:scale-[0.99] transition"
+                  title={isProjectActive(quote) ? "Pasife al" : "Aktifleştir"}
+                >
+                  {isProjectActive(quote) ? (
+                    <Power size={14} className="text-emerald-600 shrink-0" aria-hidden />
+                  ) : (
+                    <PowerOff size={14} className="text-ink-400 shrink-0" aria-hidden />
+                  )}
+                  {projectStatusLabel(quote)}
+                </button>
+                <IconButton
+                  icon={sectionsOpen.info ? ChevronUp : ChevronDown}
+                  variant="ghost"
+                  ariaLabel="Teklif bilgileri aç/kapat"
+                  onClick={() => toggleSection("info")}
+                />
+              </div>
             }
           />
+          {sectionsOpen.info && (
+            <>
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <Field label="Teklif adı">
               <TextInput
@@ -403,6 +482,8 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               {saving && projectDirty ? "Kaydediliyor…" : "Bilgileri Güncelle"}
             </Button>
           </div>
+            </>
+          )}
         </Card>
 
         {/* Odalar */}
@@ -414,10 +495,20 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
                 Modüller
               </h3>
             </div>
-            <Button icon={Plus} onClick={startNewRoom} variant="dark">
-              Oda ekle
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button icon={Plus} onClick={startNewRoom} variant="dark">
+                Oda ekle
+              </Button>
+              <IconButton
+                icon={sectionsOpen.rooms ? ChevronUp : ChevronDown}
+                variant="ghost"
+                ariaLabel="Odalar aç/kapat"
+                onClick={() => toggleSection("rooms")}
+              />
+            </div>
           </div>
+          {sectionsOpen.rooms && (
+            <>
           {quote.rooms && quote.rooms.length > 0 ? (
             <div className="px-5 pb-5 space-y-3">
               {quote.rooms.map((room) => (
@@ -443,32 +534,133 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               />
             </div>
           )}
+            </>
+          )}
+        </Card>
+
+        {/* Ek hizmet ekle */}
+        <Card>
+          <CardHeader
+            title="Ek hizmet ekle"
+            subtitle="Seç diyerek modal üzerinden hizmet ekleyin"
+            action={
+              <IconButton
+                icon={sectionsOpen.services ? ChevronUp : ChevronDown}
+                variant="ghost"
+                ariaLabel="Ek hizmet aç/kapat"
+                onClick={() => toggleSection("services")}
+              />
+            }
+          />
+          {sectionsOpen.services && (
+            <>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <p className="text-xs text-ink-500">
+              Seçilen hizmet adedi: <span className="font-semibold text-ink-800">{(quote.services || []).length}</span>
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              icon={Plus}
+              onClick={() => setServicePickerOpen(true)}
+              disabled={!servicesCatalog.length}
+            >
+              Seç
+            </Button>
+          </div>
+
+          {(quote.services || []).length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {(quote.services || []).map((selected) => (
+                <div
+                  key={selected.id}
+                  className="rounded-xl border border-ink-100 bg-surface-50 px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink-900 truncate">{selected.name}</p>
+                      <p className="text-xs text-ink-500">
+                        {formatCurrency(selected.price)} / {selected.unit || "adet"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <IconButton
+                        icon={Minus}
+                        variant="ghost"
+                        ariaLabel="Azalt"
+                        onClick={() => updateServiceQty(selected.id, (selected.quantity || 0) - 1)}
+                      />
+                      <span className="w-8 text-center text-sm font-semibold text-ink-800">
+                        {selected.quantity || 0}
+                      </span>
+                      <IconButton
+                        icon={Plus}
+                        variant="ghost"
+                        ariaLabel="Arttır"
+                        onClick={() => updateServiceQty(selected.id, (selected.quantity || 0) + 1)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-ink-500">Henüz ek hizmet seçilmedi.</p>
+          )}
+
+          <div className="mt-4 flex items-center justify-end gap-2">
+            {serviceDirty ? (
+              <span className="text-[11px] font-semibold text-warning-600 inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-warning-500" />
+                Kaydedilmemiş değişiklik
+              </span>
+            ) : (
+              <span className="text-[11px] font-semibold text-success-600 inline-flex items-center gap-1.5">
+                <CheckCircle2 size={12} />
+                Ek hizmetler güncel
+              </span>
+            )}
+            <Button
+              size="sm"
+              icon={Save}
+              variant={serviceDirty ? "primary" : "ghost"}
+              disabled={!serviceDirty || saving}
+              onClick={saveServices}
+            >
+              {saving && serviceDirty ? "Kaydediliyor…" : "Hizmetleri Güncelle"}
+            </Button>
+          </div>
+            </>
+          )}
         </Card>
 
         {/* İndirim */}
         <Card>
-          <CardHeader title="İndirim" subtitle="Brüt (indirimsiz) satırından düşülür" />
+          <CardHeader
+            title="İndirim"
+            subtitle="Brüt (indirimsiz) satırından düşülür"
+            action={
+              <IconButton
+                icon={sectionsOpen.discount ? ChevronUp : ChevronDown}
+                variant="ghost"
+                ariaLabel="İndirim aç/kapat"
+                onClick={() => toggleSection("discount")}
+              />
+            }
+          />
+          {sectionsOpen.discount && (
+            <>
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
-            <Field label="Üretici indirim oranı" hint="Brüt toplam (m²×kalite + cam + hırdavat + hizmet) üzerinden %">
+            <Field label="Üretici indirim oranı" hint="Toplam tutar üzerinden yüzde indirim">
               <PercentInput
                 value={quote.producerDiscountRate}
-                onValueChange={(v) => {
-                  actions.updateQuote(projectId, quoteId, (q) => {
-                    q.producerDiscountRate = v;
-                  });
-                  setDiscountDirty(true);
-                }}
+                onValueChange={(v) => syncDiscountFromRate(v)}
               />
             </Field>
-            <Field label="Manuel indirim tutarı" hint="Üretici indirimi uygulandıktan sonra kalan net üzerinden düşülür (üst sınır: o net tutar)">
+            <Field label="Manuel indirim tutarı" hint="Oran alanı ile senkron çalışır">
               <MoneyInput
                 value={quote.generalDiscountAmount}
-                onValueChange={(v) => {
-                  actions.updateQuote(projectId, quoteId, (q) => {
-                    q.generalDiscountAmount = v;
-                  });
-                  setDiscountDirty(true);
-                }}
+                onValueChange={(v) => syncDiscountFromAmount(v)}
               />
             </Field>
           </div>
@@ -479,18 +671,14 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               value={formatCurrency(calc.totals.officialRoomTotal)}
             />
             <SummaryLine
-              label="Cam toplamı"
-              hint="Gardırop vb. için girilen cam kalemlerinin TL toplamı."
-              value={formatCurrency(calc.totals.glassExtrasTotal)}
-            />
-            <SummaryLine
-              label="Ek hırdavat"
-              hint="Odalar için girilen tek sefer tutarların toplamı; indiriminizden sonra nete yansır."
-              value={formatCurrency(calc.totals.hardwareExtrasTotal)}
-            />
-            <SummaryLine
-              label="Ek hizmetler"
-              value={formatCurrency(calc.totals.servicesTotal)}
+              label="Ek kalemler toplamı"
+              hint={`Cam: ${formatCurrency(calc.totals.glassExtrasTotal)} · Hırdavat: ${formatCurrency(calc.totals.hardwareExtrasTotal)} · Hizmet: ${formatCurrency(calc.totals.servicesTotal)}`}
+              value={formatCurrency(
+                calc.totals.glassExtrasTotal +
+                  calc.totals.hardwareExtrasTotal +
+                  calc.totals.servicesTotal
+              )}
+              tone="warning"
             />
             <SummaryLine
               label={`Brüt (indirimsiz)`}
@@ -532,6 +720,50 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               {saving && discountDirty ? "Kaydediliyor…" : "İndirimi Güncelle"}
             </Button>
           </div>
+            </>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Teklif süreci"
+            subtitle="Aktif, pasif ve sözleşme adımları"
+            action={
+              <IconButton
+                icon={sectionsOpen.flow ? ChevronUp : ChevronDown}
+                variant="ghost"
+                ariaLabel="Teklif süreci aç/kapat"
+                onClick={() => toggleSection("flow")}
+              />
+            }
+          />
+          {sectionsOpen.flow && (
+          <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs font-semibold text-ink-600">
+              Durum: <span className="text-ink-900">{WORKFLOW_LABELS[quoteWorkflow(quote)] || "Hazırlanıyor"}</span>
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5 min-w-0 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+              <Button
+                variant="dark"
+                size="sm"
+                className="h-9 text-xs shrink-0"
+                icon={FileSignature}
+                onClick={convertToContract}
+                disabled={
+                  quoteWorkflow(quote) === "contracted" ||
+                  quoteWorkflow(quote) === "completed"
+                }
+              >
+                Sözleşmeye çevir
+              </Button>
+              <p className="text-[10px] leading-snug text-ink-500 sm:min-w-0 line-clamp-2">
+                PDF: <span className="font-medium text-ink-600">{pdfDocumentHeading(quote)}</span>
+                {" — "}
+                Sözleşme aşamasında başlık &quot;Sözleşme&quot; olur.
+              </p>
+            </div>
+          </div>
+          )}
         </Card>
       </div>
 
@@ -564,6 +796,57 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
           )}
         </div>
       </Modal>
+
+      <Modal
+        open={servicePickerOpen}
+        onClose={() => setServicePickerOpen(false)}
+        size="lg"
+      >
+        <div className="p-5 sm:p-6">
+          <p className="yk-eyebrow">Ek hizmet seç</p>
+          <h3 className="yk-display text-xl text-ink-900 mt-1 mb-4">
+            Hizmet listesinden
+            <span className="text-brand-500"> ekleme yapın</span>
+          </h3>
+          {servicesCatalog.length === 0 ? (
+            <p className="text-sm text-ink-500">Tanımlı ek hizmet bulunamadı.</p>
+          ) : (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto yk-scroll pr-1">
+              {servicesCatalog.map((service) => {
+                const selected = (quote.services || []).find((s) => s.id === service.id);
+                return (
+                  <div
+                    key={service.id}
+                    className="rounded-xl border border-ink-100 bg-surface-50 px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink-900 truncate">{service.name}</p>
+                        <p className="text-xs text-ink-500">
+                          {formatCurrency(service.price)} / {service.unit || "adet"}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={selected ? "dark" : "outline"}
+                        icon={Plus}
+                        onClick={() => addServiceLine(service)}
+                      >
+                        {selected ? "Bir daha ekle" : "Ekle"}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="mt-4 flex justify-end">
+            <Button variant="ghost" onClick={() => setServicePickerOpen(false)}>
+              Kapat
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
@@ -574,6 +857,7 @@ function SummaryLine({ label, value, tone = "default", big = false, hint }) {
     brand: "text-brand-600",
     danger: "text-danger-600",
     success: "text-success-600",
+    warning: "text-warning-700",
     ink: "text-ink-800"
   };
   return (
