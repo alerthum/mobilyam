@@ -10,6 +10,11 @@ const numberFormatter = new Intl.NumberFormat("tr-TR", {
 
 const dateFormatter = new Intl.DateTimeFormat("tr-TR");
 
+const dateTimeFormatter = new Intl.DateTimeFormat("tr-TR", {
+  dateStyle: "short",
+  timeStyle: "short"
+});
+
 export function formatCurrency(value) {
   const n = Number(value || 0);
   if (!Number.isFinite(n)) return currencyFormatter.format(0);
@@ -26,6 +31,16 @@ export function formatDate(value) {
   if (!value) return "—";
   try {
     return dateFormatter.format(new Date(value));
+  } catch {
+    return "—";
+  }
+}
+
+/** ISO tarih/saat (örn. giriş zamanı). */
+export function formatDateTime(value) {
+  if (!value) return "—";
+  try {
+    return dateTimeFormatter.format(new Date(value));
   } catch {
     return "—";
   }

@@ -9,7 +9,8 @@ import {
   Calendar,
   Building2,
   Wrench,
-  Clock
+  Clock,
+  LogIn
 } from "lucide-react";
 import TopBar from "../components/layout/TopBar.jsx";
 import Card from "../components/ui/Card.jsx";
@@ -22,7 +23,7 @@ import Field from "../components/inputs/Field.jsx";
 import TextInput from "../components/inputs/TextInput.jsx";
 import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import { useConfirm, useToast } from "../context/ModalContext.jsx";
-import { formatDate, todayIso, addOneYear, addYears } from "../utils/format.js";
+import { formatDate, formatDateTime, todayIso, addOneYear, addYears } from "../utils/format.js";
 import { downloadElementAsPdf, formatPdfErrorForUser } from "../utils/pdf.js";
 
 const ROLE_LABEL = {
@@ -45,6 +46,10 @@ export default function UsersPage() {
     (u) => !u.hiddenFromManagement && u.role !== "system_admin"
   );
   const isSysAdmin = user?.role === "system_admin";
+  /** Son giriş yalnızca bu iki listede gösterilir (oda kullanıcı listesi · sistem yöneticisi oda hesapları). */
+  const showLastLoginChamberTenantList = user?.role === "chamber";
+  const showLastLoginSysAdminChamberList = isSysAdmin;
+  const showLastLoginPdfColumn = showLastLoginChamberTenantList || showLastLoginSysAdminChamberList;
 
   /** Oda yönetimi: yalnızca kendi oda kullanıcıları (sunucu da filtreler; ikinci koruma). */
   const allUsers =
@@ -408,6 +413,13 @@ export default function UsersPage() {
                             Oda lisans bitiş: {formatDate(u.licenseEndDate)}
                           </p>
                         )}
+                        {showLastLoginSysAdminChamberList ? (
+                          <p className="text-[11px] text-ink-500 mt-1">
+                            {u.lastLoginAt
+                              ? `Son giriş: ${formatDateTime(u.lastLoginAt)}`
+                              : "Henüz giriş kaydı yok"}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
                         <Button
@@ -502,9 +514,16 @@ export default function UsersPage() {
                           </Badge>
                           <Badge icon={Calendar} variant="default">
                             {stats.lastDate
-                              ? `Son: ${formatDate(stats.lastDate)}`
+                              ? `Son teklif: ${formatDate(stats.lastDate)}`
                               : "Henüz teklif yok"}
                           </Badge>
+                          {showLastLoginChamberTenantList ? (
+                            <Badge icon={LogIn} variant="default">
+                              {u.lastLoginAt
+                                ? `Son giriş: ${formatDateTime(u.lastLoginAt)}`
+                                : "Henüz giriş yok"}
+                            </Badge>
+                          ) : null}
                           {u.licenseEndDate && (
                             <Badge variant="warning">
                               Lisans: {formatDate(u.licenseEndDate)}
@@ -512,11 +531,20 @@ export default function UsersPage() {
                           )}
                         </div>
                       )}
-                      {u.role === "chamber" && u.licenseEndDate && (
-                        <div className="mt-2">
-                          <Badge variant="warning">
-                            Oda lisansı: {formatDate(u.licenseEndDate)}
-                          </Badge>
+                      {u.role === "chamber" && (
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          {u.licenseEndDate && (
+                            <Badge variant="warning">
+                              Oda lisansı: {formatDate(u.licenseEndDate)}
+                            </Badge>
+                          )}
+                          {showLastLoginChamberTenantList ? (
+                            <Badge icon={LogIn} variant="default">
+                              {u.lastLoginAt
+                                ? `Son giriş: ${formatDateTime(u.lastLoginAt)}`
+                                : "Henüz giriş yok"}
+                            </Badge>
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -592,8 +620,20 @@ export default function UsersPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "12px", fontSize: "12px" }}>
             <thead>
               <tr>
-                {["Ad Soyad", "Kullanıcı Adı", "Rol", "Firma", "Durum", "Teklif", "Son Teklif", "Şifre"].map((h) => (
-                  <th key={h} style={{ border: "1px solid #ddd", textAlign: "left", padding: "6px" }}>{h}</th>
+                {[
+                  "Ad Soyad",
+                  "Kullanıcı Adı",
+                  "Rol",
+                  "Firma",
+                  "Durum",
+                  "Teklif",
+                  "Son teklif",
+                  ...(showLastLoginPdfColumn ? ["Son giriş"] : []),
+                  "Şifre"
+                ].map((h) => (
+                  <th key={h} style={{ border: "1px solid #ddd", textAlign: "left", padding: "6px" }}>
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -611,6 +651,11 @@ export default function UsersPage() {
                     <td style={{ border: "1px solid #ddd", padding: "6px" }}>
                       {u.role === "producer" ? (stats.lastDate ? formatDate(stats.lastDate) : "—") : "-"}
                     </td>
+                    {showLastLoginPdfColumn ? (
+                      <td style={{ border: "1px solid #ddd", padding: "6px" }}>
+                        {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "—"}
+                      </td>
+                    ) : null}
                     <td style={{ border: "1px solid #ddd", padding: "6px" }}>********</td>
                   </tr>
                 );

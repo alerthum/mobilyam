@@ -151,7 +151,8 @@ function sanitizeManagedUser(user, chamberContext) {
     status: user.status === "passive" ? "passive" : "active",
     hiddenFromManagement: false,
     dismissedBroadcastIds: Array.isArray(user.dismissedBroadcastIds) ? [...user.dismissedBroadcastIds] : [],
-    broadcastViews: Array.isArray(user.broadcastViews) ? clone(user.broadcastViews) : []
+    broadcastViews: Array.isArray(user.broadcastViews) ? clone(user.broadcastViews) : [],
+    lastLoginAt: typeof user.lastLoginAt === "string" ? user.lastLoginAt : ""
   };
 
   if (role === "producer") {
@@ -186,7 +187,19 @@ function mergeManagedUsers(existingUsers, incomingUsers, chamberContext) {
   const managedUsers = Array.isArray(incomingUsers) ? incomingUsers : [];
   const sanitized = managedUsers
     .filter((user) => user.role === "chamber" || user.role === "producer")
-    .map((user) => sanitizeManagedUser(user, chamberContext));
+    .map((user) => sanitizeManagedUser(user, chamberContext))
+    .map((clean) => {
+      const prev = (existingUsers || []).find((u) => u.id === clean.id);
+      if (
+        prev &&
+        typeof prev.lastLoginAt === "string" &&
+        prev.lastLoginAt.trim() &&
+        (!clean.lastLoginAt || !String(clean.lastLoginAt).trim())
+      ) {
+        return { ...clean, lastLoginAt: prev.lastLoginAt };
+      }
+      return clean;
+    });
 
   let chamberUser = sanitized.find((user) => user.role === "chamber" && user.chamberId === cid);
   if (!chamberUser) {

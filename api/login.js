@@ -1,5 +1,9 @@
-const { getRemoteState } = require("./_db");
+const { getRemoteState, saveRemoteState } = require("./_db");
 const { canLogin, createSessionToken, filterStateForUser } = require("./_auth");
+
+function cloneState(obj) {
+  return JSON.parse(JSON.stringify(obj || {}));
+}
 
 module.exports = async function handler(req, res) {
   try {
@@ -30,11 +34,20 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    const now = new Date().toISOString();
+    const data = cloneState(payload.data);
+    data.users = (data.users || []).map((item) =>
+      item.id === user.id ? { ...item, lastLoginAt: now } : item
+    );
+    await saveRemoteState(data);
+
+    const freshUser = (data.users || []).find((item) => item.id === user.id) || user;
+
     res.status(200).json({
       ok: true,
-      token: createSessionToken(user),
-      auth: { userId: user.id, role: user.role },
-      data: filterStateForUser(payload.data, user),
+      token: createSessionToken(freshUser),
+      auth: { userId: freshUser.id, role: freshUser.role },
+      data: filterStateForUser(data, freshUser),
       storageMode: payload.storageMode || "live"
     });
   } catch (error) {
