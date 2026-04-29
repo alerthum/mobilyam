@@ -232,17 +232,8 @@ export function calcBanyo(basic) {
 /*                              İŞ KURALLARI: MUTFAK                           */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Mutfak — Excel maliyet raporu mantığıyla uyumlu (özet):
- *  - Üst dolap   = (tavan-140) × (duvar - boyDolapEn - buzDolapEn - üstKör)
- *  - Alt dolap raw = (duvar - kapı - boyDolap - buzDolap - altKör)
- *  - Alt dolap   = altRaw × 100 × 1.3
- *  - Tezgah mt   = altRaw / 100
- *  - Buz dolap   = (tavan-195) × buzDolap × 1.3
- *  - Buz yanak   = tavan × 30 × yanakAdet
- *  - Boy dolap   = tavan × boyDolapEn × 1.3
- */
-export function calcMutfak(basic) {
+/** Ortak cm² bileşenleri — calcMutfak ve UI özeti aynı kaynaktan beslenir. */
+function mutfakComponentCm2(basic) {
   const C5 = num(basic.ceilingHeight);
   const C6 = num(basic.wallWidth);
   const C7 = num(basic.doorWidth);
@@ -252,33 +243,139 @@ export function calcMutfak(basic) {
   const C11 = num(basic.ustKorMesafe);
   const C12 = num(basic.altKorMesafe);
 
-  const ustDolap = (C5 - 140) * (C6 - C8 - C9 - C11);
+  const ustRaw = (C5 - 140) * (C6 - C8 - C9 - C11);
   const altDolapRaw = C6 - C7 - C8 - C9 - C12;
-  const altDolap = altDolapRaw * 100 * 1.3;
-  const tezgahMt = altDolapRaw / 100;
-  const buzDolap = (C5 - 195) * C9 * 1.3;
-  const buzYanak = C5 * 30 * C10;
-  const boyDolap = C5 * C8 * 1.3;
+  const altRaw = altDolapRaw * 100 * 1.3;
+  const buzRaw = (C5 - 195) * C9 * 1.3;
+  const yanakRaw = C5 * 30 * C10;
+  const boyRaw = C5 * C8 * 1.3;
 
+  return {
+    C5,
+    C6,
+    C7,
+    C8,
+    C9,
+    C10,
+    C11,
+    C12,
+    altDolapRaw,
+    ustDolapCm2: Math.max(0, ustRaw),
+    altDolapCm2: Math.max(0, altRaw),
+    buzDolapCm2: Math.max(0, buzRaw),
+    buzYanakCm2: Math.max(0, yanakRaw),
+    boyDolapCm2: Math.max(0, boyRaw)
+  };
+}
+
+/**
+ * Mutfak m² özeti satırları (cm cinsinden ölçüler → cm² → m²).
+ * Toplam, fiyatlamada kullanılan panel eşdeğeri ile aynıdır.
+ */
+export function getMutfakM2Breakdown(basic) {
+  const r = mutfakComponentCm2(basic);
+  const fmt = (n) =>
+    Number(n).toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+
+  const rows = [
+    {
+      key: "ust",
+      label: "Üst dolap",
+      cm2: r.ustDolapCm2,
+      m2: r.ustDolapCm2 / 10000,
+      detail: `(${fmt(r.C5)} − 140) × (${fmt(r.C6)} − ${fmt(r.C8)} − ${fmt(r.C9)} − ${fmt(r.C11)}) = ${fmt(r.ustDolapCm2)} cm²`
+    },
+    {
+      key: "alt",
+      label: "Alt dolap",
+      cm2: r.altDolapCm2,
+      m2: r.altDolapCm2 / 10000,
+      detail: `(${fmt(r.C6)} − ${fmt(r.C7)} − ${fmt(r.C8)} − ${fmt(r.C9)} − ${fmt(r.C12)}) × 100 × 1,3 = ${fmt(r.altDolapCm2)} cm²`
+    },
+    {
+      key: "buz",
+      label: "Buz dolap",
+      cm2: r.buzDolapCm2,
+      m2: r.buzDolapCm2 / 10000,
+      detail: `(${fmt(r.C5)} − 195) × ${fmt(r.C9)} × 1,3 = ${fmt(r.buzDolapCm2)} cm²`
+    },
+    {
+      key: "yanak",
+      label: "Buz dolap yanak",
+      cm2: r.buzYanakCm2,
+      m2: r.buzYanakCm2 / 10000,
+      detail: `${fmt(r.C5)} × 30 × ${fmt(r.C10)} = ${fmt(r.buzYanakCm2)} cm²`
+    },
+    {
+      key: "boy",
+      label: "Boy dolap",
+      cm2: r.boyDolapCm2,
+      m2: r.boyDolapCm2 / 10000,
+      detail: `${fmt(r.C5)} × ${fmt(r.C8)} × 1,3 = ${fmt(r.boyDolapCm2)} cm²`
+    }
+  ];
+
+  const totalCm2 = rows.reduce((s, row) => s + row.cm2, 0);
+  /** Excel satırı: tezgah “uzunluk” (m); alan toplamına dahil edilmez */
+  const tezgahLinearM = Math.max(0, r.altDolapRaw / 100);
+
+  return {
+    rows,
+    totalCm2,
+    totalM2: totalCm2 / 10000,
+    tezgahLinearM,
+    tezgahLinearDetail: `(Duvar − kapı − boy dolap − buz dolap − alt kör) ÷ 100 = ${fmt(tezgahLinearM)} m (uzunluk, m² değil)`
+  };
+}
+
+/**
+ * Mutfak — Excel maliyet raporu mantığıyla uyumlu (özet):
+ *  - Üst dolap   = (tavan-140) × (duvar - boyDolapEn - buzDolapEn - üstKör)
+ *  - Alt dolap raw = (duvar - kapı - boyDolap - buzDolap - altKör)
+ *  - Alt dolap   = altRaw × 100 × 1.3
+ *  - Tezgah mt   = altRaw / 100  (metre cinsinden uzunluk; m² toplamına girmez)
+ *  - Buz dolap   = (tavan-195) × buzDolap × 1.3
+ *  - Buz yanak   = tavan × 30 × yanakAdet
+ *  - Boy dolap   = tavan × boyDolapEn × 1.3
+ */
+export function calcMutfak(basic) {
+  const r = mutfakComponentCm2(basic);
   const totalCm2 =
-    Math.max(0, ustDolap) +
-    Math.max(0, altDolap) +
-    Math.max(0, buzDolap) +
-    Math.max(0, buzYanak) +
-    Math.max(0, boyDolap);
+    r.ustDolapCm2 + r.altDolapCm2 + r.buzDolapCm2 + r.buzYanakCm2 + r.boyDolapCm2;
+  const tezgahMt = Math.max(0, r.altDolapRaw / 100);
 
   const panelEquivalentM2 = totalCm2 / 10000;
 
   return {
     type: "mutfak",
     panelEquivalentM2: round(panelEquivalentM2, 3),
-    tezgahMt: round(Math.max(0, tezgahMt), 2),
+    tezgahMt: round(tezgahMt, 2),
     breakdown: [
-      { label: "Üst dolap", m2: round(ustDolap / 10000, 3), formula: "(tavan-140) × (duvar-boy-buz-üstKör)" },
-      { label: "Alt dolap", m2: round(altDolap / 10000, 3), formula: "alt × 1.30" },
-      { label: "Buz dolap", m2: round(buzDolap / 10000, 3), formula: "(tavan-195) × buz × 1.30" },
-      { label: "Buz yanak", m2: round(buzYanak / 10000, 3), formula: "tavan × 30 × adet" },
-      { label: "Boy dolap", m2: round(boyDolap / 10000, 3), formula: "tavan × boy × 1.30" }
+      {
+        label: "Üst dolap",
+        m2: round(r.ustDolapCm2 / 10000, 3),
+        formula: "(tavan-140) × (duvar-boy-buz-üstKör)"
+      },
+      {
+        label: "Alt dolap",
+        m2: round(r.altDolapCm2 / 10000, 3),
+        formula: "alt × 1.30"
+      },
+      {
+        label: "Buz dolap",
+        m2: round(r.buzDolapCm2 / 10000, 3),
+        formula: "(tavan-195) × buz × 1.30"
+      },
+      {
+        label: "Buz yanak",
+        m2: round(r.buzYanakCm2 / 10000, 3),
+        formula: "tavan × 30 × adet"
+      },
+      {
+        label: "Boy dolap",
+        m2: round(r.boyDolapCm2 / 10000, 3),
+        formula: "tavan × boy × 1.30"
+      }
     ]
   };
 }

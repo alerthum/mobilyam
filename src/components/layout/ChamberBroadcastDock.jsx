@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import clsx from "clsx";
 import {
   AlertCircle,
@@ -47,6 +47,7 @@ function variantTone(v) {
 export default function ChamberBroadcastDock() {
   const user = useCurrentUser();
   const { remote, commit } = useApp();
+  const seenInSessionRef = useRef(new Set());
 
   const items = useMemo(() => {
     if (user?.role !== "producer" || !remote) return [];
@@ -65,20 +66,19 @@ export default function ChamberBroadcastDock() {
   useEffect(() => {
     if (!user?.id || !items.length) return;
     const openIds = new Set(items.map((b) => b.id));
-    const currentViews = Array.isArray(user.broadcastViews) ? user.broadcastViews : [];
-    const missing = [...openIds].filter(
-      (id) => !currentViews.some((v) => v?.broadcastId === id)
+    const toMark = [...openIds].filter(
+      (id) => !seenInSessionRef.current.has(id)
     );
-    if (!missing.length) return;
+    if (!toMark.length) return;
     commit((d) => {
       d.users ??= [];
       const me = d.users.find((x) => x.id === user.id);
       const baseViews = Array.isArray(me?.broadcastViews) ? [...me.broadcastViews] : [];
       const now = new Date().toISOString();
-      missing.forEach((id) => {
-        if (!baseViews.some((v) => v?.broadcastId === id)) {
-          baseViews.push({ broadcastId: id, seenAt: now });
-        }
+      toMark.forEach((id) => {
+        const existingIdx = baseViews.findIndex((v) => v?.broadcastId === id);
+        if (existingIdx >= 0) baseViews[existingIdx] = { ...baseViews[existingIdx], seenAt: now };
+        else baseViews.push({ broadcastId: id, seenAt: now });
       });
       const updated = me
         ? { ...me, broadcastViews: baseViews }
@@ -86,6 +86,7 @@ export default function ChamberBroadcastDock() {
       d.users = (d.users || []).map((x) => (x.id === user.id ? updated : x));
       if (!d.users.some((x) => x.id === user.id)) d.users.push(updated);
     });
+    toMark.forEach((id) => seenInSessionRef.current.add(id));
   }, [commit, items, user]);
 
   async function dismiss(id) {

@@ -214,6 +214,22 @@ function sanitizeProducerQuotes(quotes, userId) {
   }));
 }
 
+/** Oda yöneticisi görünümünde teklif listesi: doğrudan chamberId veya eski kayıtta üretici üzerinden kapsam. */
+function quoteBelongsToChamberScope(quote, cid, users) {
+  if (!quote || !cid) return false;
+  if (quote.chamberId === cid) return true;
+  const missing =
+    quote.chamberId == null || String(quote.chamberId).trim() === "";
+  if (!missing) return false;
+  const owner = (users || []).find((u) => u && u.id === quote.ownerUserId);
+  return Boolean(
+    owner &&
+      !owner.hiddenFromManagement &&
+      owner.role === "producer" &&
+      owner.chamberId === cid
+  );
+}
+
 /** Çok kiracılı odadan gelen katalog güncellenir; oda satırı yoksa oluşturur. */
 function patchChamberInState(nextState, chamberId, patch) {
   if (!chamberId) return nextState;
@@ -278,7 +294,9 @@ function filterStateForUser(remoteState, user) {
           item.role !== "system_admin" &&
           item.chamberId === cid
       ),
-      quotes: []
+      quotes: (baseState.quotes || []).filter((quote) =>
+        quoteBelongsToChamberScope(quote, cid, baseState.users)
+      )
     };
   }
 

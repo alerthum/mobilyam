@@ -101,6 +101,37 @@ export default function DashboardPage() {
     }
   }
 
+  async function resendBroadcast(item) {
+    const ok = await confirm({
+      variant: "warning",
+      title: "Duyuru yeniden gönderilsin mi?",
+      description: `"${item.title || "Duyuru"}" tüm kullanıcılara yeniden gösterilecek.`,
+      confirmLabel: "Yeniden gönder",
+      cancelLabel: "Vazgeç"
+    });
+    if (!ok) return;
+
+    const result = await commit((d) => {
+      d.chamber ??= {};
+      d.chamber.broadcasts = (d.chamber.broadcasts || []).map((b) =>
+        b.id === item.id
+          ? {
+              ...b,
+              publishedAt: new Date().toISOString(),
+              resentAt: new Date().toISOString()
+            }
+          : b
+      );
+      d.users = (d.users || []).map((u) => ({
+        ...u,
+        dismissedBroadcastIds: (u.dismissedBroadcastIds || []).filter((id) => id !== item.id),
+        broadcastViews: (u.broadcastViews || []).filter((v) => v.broadcastId !== item.id)
+      }));
+    });
+    if (result?.ok) toast.success("Duyuru yeniden gönderildi.");
+    else toast.error("Yeniden gönderilemedi.");
+  }
+
   async function deleteBroadcast(item) {
     const ok = await confirm({
       variant: "danger",
@@ -255,6 +286,15 @@ export default function DashboardPage() {
                           size="sm"
                           className="text-xs px-2.5 py-1"
                           variant="ghost"
+                          icon={Send}
+                          onClick={() => resendBroadcast(b)}
+                        >
+                          Yeniden gönder
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="text-xs px-2.5 py-1"
+                          variant="ghost"
                           icon={Trash2}
                           onClick={() => deleteBroadcast(b)}
                         >
@@ -283,6 +323,7 @@ export default function DashboardPage() {
           onClose={() => setEditingBroadcast(null)}
           onChange={setEditingBroadcast}
           onSave={saveBroadcastEdit}
+          onResend={() => editingBroadcast?.id && resendBroadcast(editingBroadcast)}
         />
         <BroadcastDetailModal
           broadcast={viewingBroadcast}
@@ -327,7 +368,7 @@ export default function DashboardPage() {
   );
 }
 
-function BroadcastEditModal({ value, onClose, onChange, onSave }) {
+function BroadcastEditModal({ value, onClose, onChange, onSave, onResend }) {
   if (!value) return null;
   return (
     <Modal open onClose={onClose} size="lg">
@@ -373,6 +414,9 @@ function BroadcastEditModal({ value, onClose, onChange, onSave }) {
           <Button variant="ghost" onClick={onClose}>
             Vazgeç
           </Button>
+          <Button variant="outline" icon={Send} onClick={onResend}>
+            Bildirimi yeniden gönder
+          </Button>
           <Button onClick={onSave}>Kaydet</Button>
         </div>
       </div>
@@ -398,7 +442,7 @@ function BroadcastDetailModal({ broadcast, viewers, onClose }) {
                   {v.fullName} <span className="text-ink-400">@{v.username}</span>
                 </p>
                 <p className="text-xs text-ink-500 mt-1">
-                  {v.seenAt ? `Gördü: ${new Date(v.seenAt).toLocaleString("tr-TR")}` : "Henüz görmedi"}
+                  {v.seenAt ? `Son gördüğü: ${new Date(v.seenAt).toLocaleString("tr-TR")}` : "Henüz görmedi"}
                 </p>
               </div>
             ))}

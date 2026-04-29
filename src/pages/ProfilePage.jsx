@@ -1,14 +1,15 @@
-import React from "react";
-import { User2, LogOut, ShieldCheck, Building2, Briefcase, Wallet, Receipt } from "lucide-react";
+import React, { useRef } from "react";
+import { User2, LogOut, ShieldCheck, Building2, Briefcase, Wallet, Receipt, FileDown } from "lucide-react";
 import TopBar from "../components/layout/TopBar.jsx";
 import Card, { CardHeader } from "../components/ui/Card.jsx";
 import KpiCard from "../components/ui/KpiCard.jsx";
 import Button from "../components/ui/Button.jsx";
 import Logo from "../components/ui/Logo.jsx";
 import { useApp, useCurrentUser } from "../context/AppContext.jsx";
-import { useConfirm } from "../context/ModalContext.jsx";
+import { useConfirm, useToast } from "../context/ModalContext.jsx";
 import { calculateQuoteTotals } from "../utils/calculations.js";
 import { formatCurrency, formatDate } from "../utils/format.js";
+import { downloadElementAsPdf, formatPdfErrorForUser } from "../utils/pdf.js";
 
 const ROLE_LABEL = {
   system_admin: "Sistem Admin",
@@ -20,6 +21,8 @@ export default function ProfilePage() {
   const { remote, logout, storageMode } = useApp();
   const user = useCurrentUser();
   const confirm = useConfirm();
+  const toast = useToast();
+  const guidePdfRef = useRef(null);
 
   const myQuotes = (remote?.quotes || []).filter((q) => q.ownerUserId === user?.id);
   const totalRevenue = myQuotes.reduce(
@@ -37,6 +40,18 @@ export default function ProfilePage() {
       cancelLabel: "Vazgeç"
     });
     if (ok) logout();
+  }
+
+  async function downloadGuidePdf() {
+    if (!guidePdfRef.current) {
+      toast.error("Kılavuz içeriği hazırlanamadı.");
+      return;
+    }
+    try {
+      await downloadElementAsPdf(guidePdfRef.current, "kullanim-kilavuzu");
+    } catch (err) {
+      toast.error(formatPdfErrorForUser(err, "Kılavuz PDF indirilemedi"));
+    }
   }
 
   return (
@@ -102,6 +117,39 @@ export default function ProfilePage() {
           </div>
         </Card>
 
+        <Card>
+          <CardHeader
+            title="Hızlı Kullanım Kılavuzu"
+            subtitle="Projenin temel akışı ve operasyon adımları"
+            action={
+              <Button size="sm" variant="outline" icon={FileDown} onClick={downloadGuidePdf}>
+                PDF indir
+              </Button>
+            }
+          />
+          <div className="mt-4 space-y-3 text-sm text-ink-700 leading-relaxed">
+            <GuideBlock
+              title="1) Teklif Oluşturma"
+              description="Ana sayfadan yeni teklif başlatın, teklif bilgilerini girin ve odaları ekleyin."
+            />
+            <GuideBlock
+              title="2) Oda Hesaplama"
+              description="Oda ölçülerini girin, kalite seçin, ek hırdavat/hizmet satırlarını düzenleyin."
+            />
+            <GuideBlock
+              title="3) İndirim ve Toplam"
+              description="İndirim oranı ile manuel tutar senkron çalışır. Net tutar üst KPI kartlarında izlenir."
+            />
+            <GuideBlock
+              title="4) Duyuru ve Kullanıcı Yönetimi"
+              description="Oda yönetimi panelinden kullanıcıları yönetin, duyuru yayınlayın ve okunma detayını takip edin."
+            />
+            <p className="text-xs text-ink-500">
+              Not: Bu özet, günlük operasyon için temel akışı sunar. PDF çıktısı aynı içerikle paylaşım için uygundur.
+            </p>
+          </div>
+        </Card>
+
         <Button
           variant="ghost"
           size="lg"
@@ -112,7 +160,37 @@ export default function ProfilePage() {
           Çıkış yap
         </Button>
       </div>
+
+      <div className="fixed left-0 top-0 z-[60] w-[210mm] max-w-[100vw] max-h-[100vh] overflow-auto opacity-[0.02] pointer-events-none bg-white" aria-hidden>
+        <div ref={guidePdfRef} data-yk-print-root className="p-6 bg-white text-black">
+          <h1 style={{ fontSize: "22px", fontWeight: 700, marginBottom: "8px" }}>Yokuş Mobilya Yazılımı - Kullanım Kılavuzu</h1>
+          <p style={{ fontSize: "12px", marginBottom: "14px" }}>Oluşturulma: {new Date().toLocaleString("tr-TR")}</p>
+          <ol style={{ fontSize: "13px", lineHeight: 1.7, paddingLeft: "18px" }}>
+            <li><b>Teklif Oluşturma:</b> Ana sayfa üzerinden yeni teklif başlatılır, müşteri bilgileri kaydedilir.</li>
+            <li><b>Oda Ekleme:</b> Oda tipi seçilir, ölçüler girilir, kalite seçilir ve oda kaydedilir.</li>
+            <li><b>İndirim ve Ek Hizmet:</b> Ek hizmetler ve indirimler kartlar üzerinden güncellenir.</li>
+            <li><b>PDF ve Sözleşme:</b> Teklif PDF çıktısı alınır, gerekirse sözleşme aşamasına çevrilir.</li>
+            <li><b>Oda Yönetimi:</b> Kullanıcılar, lisanslar ve duyurular merkezi panelden yönetilir.</li>
+          </ol>
+          <div style={{ marginTop: "16px", border: "1px solid #ddd", borderRadius: "8px", padding: "10px" }}>
+            <p style={{ fontSize: "12px", fontWeight: 700 }}>Ekran Özeti</p>
+            <p style={{ fontSize: "12px", marginTop: "4px" }}>
+              Ana ekran: teklif listesi ve hızlı aksiyonlar • Teklif düzenleyici: oda, indirim, süreç kartları •
+              Oda yönetimi: kullanıcı ve duyuru operasyonları
+            </p>
+          </div>
+        </div>
+      </div>
     </>
+  );
+}
+
+function GuideBlock({ title, description }) {
+  return (
+    <div className="rounded-xl border border-ink-100 bg-surface-50 p-3">
+      <p className="font-semibold text-ink-900">{title}</p>
+      <p className="mt-1 text-xs text-ink-600">{description}</p>
+    </div>
   );
 }
 

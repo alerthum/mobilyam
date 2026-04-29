@@ -154,9 +154,24 @@ function migrateInboundState(remote) {
 
   consolidatePrimaryUshakTenant(s);
   migrateProjectsToStandaloneQuotes(s);
+  backfillQuoteChamberIds(s);
 
   /** API yanıtta kök shim: filtre sırasında doldurulur; tek kaynak chambers[]. */
   return s;
+}
+
+/** Eski kayıtlarda teklif.chamberId boş kalırsa üretici kullanıcıdan doldur (oda filtreleri için). */
+function backfillQuoteChamberIds(s) {
+  const users = Array.isArray(s.users) ? s.users : [];
+  const quotes = Array.isArray(s.quotes) ? s.quotes : [];
+  quotes.forEach((q) => {
+    if (!q || typeof q !== "object") return;
+    if (String(q.chamberId || "").trim()) return;
+    const owner = users.find((u) => u && u.id === q.ownerUserId);
+    if (owner && String(owner.chamberId || "").trim()) {
+      q.chamberId = owner.chamberId;
+    }
+  });
 }
 
 function migrateProjectsToStandaloneQuotes(s) {
@@ -276,6 +291,9 @@ function consolidatePrimaryUshakTenant(s) {
   });
   (s.projects || []).forEach((p) => {
     if (p) p.chamberId = PRIMARY_ID;
+  });
+  (s.quotes || []).forEach((q) => {
+    if (q) q.chamberId = PRIMARY_ID;
   });
 
   /** Kök özet ile chambers[0] aynı olsun — eski düz yapı uyumu. */

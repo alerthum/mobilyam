@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Users as UsersIcon,
   Plus,
@@ -23,6 +23,7 @@ import TextInput from "../components/inputs/TextInput.jsx";
 import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import { useConfirm, useToast } from "../context/ModalContext.jsx";
 import { formatDate, todayIso, addOneYear, addYears } from "../utils/format.js";
+import { downloadElementAsPdf, formatPdfErrorForUser } from "../utils/pdf.js";
 
 const ROLE_LABEL = {
   chamber: "Oda Yönetimi",
@@ -38,6 +39,7 @@ export default function UsersPage() {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(null);
   const [extendUser, setExtendUser] = useState(null);
+  const pdfRef = useRef(null);
 
   const scopedUsers = (remote?.users || []).filter(
     (u) => !u.hiddenFromManagement && u.role !== "system_admin"
@@ -58,11 +60,25 @@ export default function UsersPage() {
       if (!id) return;
       const arr = map.get(id) || { quotes: 0, lastDate: "" };
       arr.quotes += 1;
-      if (q.date && q.date > arr.lastDate) arr.lastDate = q.date;
+      const candidateDate = q.updatedAt || q.date || q.createdAt || "";
+      if (candidateDate && candidateDate > arr.lastDate) arr.lastDate = candidateDate;
       map.set(id, arr);
     });
     return map;
   }, [quotes]);
+
+  async function downloadUsersPdf() {
+    const el = pdfRef.current;
+    if (!el) {
+      toast.error("PDF alanı hazırlanamadı.");
+      return;
+    }
+    try {
+      await downloadElementAsPdf(el, "oda-yonetimi-kullanici-listesi");
+    } catch (err) {
+      toast.error(formatPdfErrorForUser(err, "Kullanıcı listesi PDF indirilemedi"));
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
@@ -314,9 +330,14 @@ export default function UsersPage() {
         }
         action={
           (user?.role === "chamber" || isSysAdmin) && (
-          <Button icon={Plus} size="sm" onClick={newUser}>
-            <span className="hidden sm:inline">{isSysAdmin ? "Oda ekle" : "Yeni"}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadUsersPdf}>
+              PDF indir
+            </Button>
+            <Button icon={Plus} size="sm" onClick={newUser}>
+              <span className="hidden sm:inline">{isSysAdmin ? "Oda ekle" : "Yeni"}</span>
+            </Button>
+          </div>
           )
         }
       />
@@ -560,6 +581,43 @@ export default function UsersPage() {
             </div>
           </Card>
         )}
+      </div>
+
+      <div className="fixed left-0 top-0 z-[60] w-[210mm] max-w-[100vw] max-h-[100vh] overflow-auto opacity-[0.02] pointer-events-none bg-white" aria-hidden>
+        <div ref={pdfRef} data-yk-print-root className="p-6 bg-white text-black">
+          <h2 style={{ fontSize: "20px", fontWeight: 700 }}>Kullanıcı Listesi</h2>
+          <p style={{ fontSize: "12px", marginTop: "4px" }}>
+            Oluşturulma: {new Date().toLocaleString("tr-TR")}
+          </p>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "12px", fontSize: "12px" }}>
+            <thead>
+              <tr>
+                {["Ad Soyad", "Kullanıcı Adı", "Rol", "Firma", "Durum", "Teklif", "Son Teklif", "Şifre"].map((h) => (
+                  <th key={h} style={{ border: "1px solid #ddd", textAlign: "left", padding: "6px" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((u) => {
+                const stats = userStats.get(u.id) || { quotes: 0, lastDate: "" };
+                return (
+                  <tr key={u.id}>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>{u.fullName || "—"}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>@{u.username || "—"}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>{ROLE_LABEL[u.role] || "—"}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>{u.company || "—"}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>{u.status === "passive" ? "Pasif" : "Aktif"}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>{u.role === "producer" ? stats.quotes : "-"}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>
+                      {u.role === "producer" ? (stats.lastDate ? formatDate(stats.lastDate) : "—") : "-"}
+                    </td>
+                    <td style={{ border: "1px solid #ddd", padding: "6px" }}>********</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <UserEditModal
