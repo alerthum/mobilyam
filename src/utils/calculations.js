@@ -73,7 +73,10 @@ export function calcVestiyer(basic) {
  *  - Toggle: kapaklı / kapaksız
  *      kapaklı  → en × boy × 1.3
  *      kapaksız → en × boy
- *  - Derinliğin hesaba ETKİSİ YOKTUR.
+ *  - Ana gardırop derinliği (boy dolap kuralı ile aynı):
+ *      depth ≤ 45  → ilave yok
+ *      45 < depth ≤ 60 → × 1.30 (%30)
+ *      depth > 60  → × 1.45 (%45)
  *  - Cam çeşitleri: kullanıcı manuel ad + fiyat girer; doğrudan toplama eklenir.
  *
  * Yatak Odası ARTIK Gardırop modülünün İÇİNDEDİR:
@@ -86,15 +89,23 @@ export function calcVestiyer(basic) {
 export function calcGardirop(room) {
   const w = num(room.width);
   const h = num(room.height);
+  const d = num(room.depth);
   const wardrobeFactor = room.kapakli ? 1.3 : 1;
-  const wardrobeM2 = cmCmToM2(w, h) * wardrobeFactor;
+  let depthFactor = 1;
+  if (d > 60) depthFactor = 1.45;
+  else if (d > 45) depthFactor = 1.3;
+
+  const wardrobeM2 = cmCmToM2(w, h) * wardrobeFactor * depthFactor;
 
   const breakdown = [];
   if (w > 0 && h > 0) {
+    const kapakPart = room.kapakli ? " × 1.30 (kapak)" : "";
+    const depthPart =
+      d > 60 ? " × 1.45 (derinlik > 60)" : d > 45 ? " × 1.30 (derinlik 46–60)" : "";
     breakdown.push({
       label: room.kapakli ? "Gardırop (Kapaklı)" : "Gardırop (Kapaksız)",
       m2: round(wardrobeM2, 3),
-      formula: room.kapakli ? "en × boy × 1.30" : "en × boy"
+      formula: `en × boy${kapakPart}${depthPart}`.trim() || "en × boy"
     });
   }
 

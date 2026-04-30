@@ -84,7 +84,7 @@ export default function GardiropModule({ room, onChange }) {
               suffix="cm"
             />
           </Field>
-          <Field label="Derinlik" hint="Hesaba etki etmez">
+          <Field label="Derinlik" hint="≤45 ilavesiz · 46–60 +%30 · >60 +%45 (gardırop alanına)">
             <DecimalInput
               value={room.depth}
               onValueChange={(v) => patch({ depth: v })}
@@ -99,8 +99,8 @@ export default function GardiropModule({ room, onChange }) {
             label={room.kapakli ? "Kapaklı gardırop" : "Kapaksız gardırop"}
             description={
               room.kapakli
-                ? "Hesaba %30 ilave uygulanır (en × boy × 1.30)"
-                : "Sadece en × boy hesaplanır"
+                ? "Kapak için en × boy × 1.30; derinlik kuralı buna ek çarpan olarak uygulanır."
+                : "Kapaksızda en × boy; derinlik kuralı (46–60 %30, >60 %45) çarpan olarak uygulanır."
             }
           />
         </div>

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Tag, Plus, Trash2, Save, CheckCircle2, FileDown } from "lucide-react";
+import { Tag, Plus, Trash2, Save, CheckCircle2, FileDown, GripVertical } from "lucide-react";
 import TopBar from "../components/layout/TopBar.jsx";
 import Card, { CardHeader } from "../components/ui/Card.jsx";
 import Field from "../components/inputs/Field.jsx";
@@ -13,6 +13,23 @@ import { useConfirm, useToast } from "../context/ModalContext.jsx";
 import { formatCurrency } from "../utils/format.js";
 import CatalogPdfBody from "../components/document/CatalogPdfBody.jsx";
 import { downloadElementAsPdf, formatPdfErrorForUser } from "../utils/pdf.js";
+
+function reorderListByIndex(list, fromIndex, toIndex) {
+  if (
+    !Array.isArray(list) ||
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= list.length ||
+    toIndex >= list.length
+  ) {
+    return list;
+  }
+  const next = [...list];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
+}
 
 export default function PricesPage() {
   const { remote, updateRemote, commit, saveNow, saveStatus } = useApp();
@@ -141,6 +158,26 @@ export default function PricesPage() {
     }
   }
 
+  function reorderQualities(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+    updateRemote((d) => {
+      d.qualities = reorderListByIndex(d.qualities || [], fromIndex, toIndex);
+    });
+    setQualitiesDirty(true);
+  }
+
+  function reorderServices(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+    updateRemote((d) => {
+      d.servicesCatalog = reorderListByIndex(
+        d.servicesCatalog || [],
+        fromIndex,
+        toIndex
+      );
+    });
+    setServicesDirty(true);
+  }
+
   return (
     <>
       <TopBar title="Fiyatlar" subtitle="Resmi katalog" />
@@ -159,6 +196,12 @@ export default function PricesPage() {
               <h2 className="yk-display text-xl text-ink-900 mt-1">
                 Malzeme m² Fiyatları
               </h2>
+              {canEdit && qualities.length > 1 && (
+                <p className="text-xs text-ink-500 mt-1.5 max-w-xl">
+                  Sıralamayı sol tutamaçtan sürükleyerek değiştirin; kaydettiğiniz sıra teklif
+                  ekranında mobilyacılara da aynen yansır.
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -207,11 +250,33 @@ export default function PricesPage() {
             </div>
           ) : (
             <div className="px-3 pb-3 space-y-2">
-              {qualities.map((q) => (
+              {qualities.map((q, qIdx) => (
                 <div
                   key={q.id}
-                  className="rounded-xl border border-ink-100 bg-surface-50 p-3 sm:p-4 grid sm:grid-cols-[1fr_180px_180px_auto] gap-3 items-start"
+                  className="rounded-xl border border-ink-100 bg-surface-50 p-3 sm:p-4 grid sm:grid-cols-[auto_1fr_180px_180px_auto] gap-3 items-start"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const from = Number(e.dataTransfer.getData("text/plain"));
+                    if (Number.isNaN(from)) return;
+                    reorderQualities(from, qIdx);
+                  }}
                 >
+                  <div className="flex items-start pt-1 sm:pt-7">
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(qIdx));
+                      }}
+                      className="touch-none rounded-lg p-1.5 text-ink-400 hover:text-ink-600 hover:bg-ink-100/80 cursor-grab active:cursor-grabbing"
+                      aria-label="Sürükleyerek sırayı değiştir"
+                      title="Sürükleyerek sırayı değiştir"
+                    >
+                      <GripVertical size={20} />
+                    </button>
+                  </div>
                   <Field label="Ad">
                     <TextInput
                       value={q.name}
@@ -282,6 +347,12 @@ export default function PricesPage() {
               <h2 className="yk-display text-xl text-ink-900 mt-1">
                 Ek Hizmetler
               </h2>
+              {canEdit && services.length > 1 && (
+                <p className="text-xs text-ink-500 mt-1.5 max-w-xl">
+                  Hizmet sırasını tutamaçtan sürükleyin; teklif formundaki ek hizmet listesi bu sırayı
+                  kullanır.
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -329,11 +400,33 @@ export default function PricesPage() {
             </div>
           ) : (
             <div className="px-3 pb-3 space-y-2">
-              {services.map((s) => (
+              {services.map((s, sIdx) => (
                 <div
                   key={s.id}
-                  className="rounded-xl border border-ink-100 bg-surface-50 p-3 sm:p-4 grid sm:grid-cols-[1fr_120px_180px_auto] gap-3 items-start"
+                  className="rounded-xl border border-ink-100 bg-surface-50 p-3 sm:p-4 grid sm:grid-cols-[auto_1fr_120px_180px_auto] gap-3 items-start"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const from = Number(e.dataTransfer.getData("text/plain"));
+                    if (Number.isNaN(from)) return;
+                    reorderServices(from, sIdx);
+                  }}
                 >
+                  <div className="flex items-start pt-1 sm:pt-7">
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(sIdx));
+                      }}
+                      className="touch-none rounded-lg p-1.5 text-ink-400 hover:text-ink-600 hover:bg-ink-100/80 cursor-grab active:cursor-grabbing"
+                      aria-label="Sürükleyerek sırayı değiştir"
+                      title="Sürükleyerek sırayı değiştir"
+                    >
+                      <GripVertical size={20} />
+                    </button>
+                  </div>
                   <Field label="Ad">
                     <TextInput
                       value={s.name}
