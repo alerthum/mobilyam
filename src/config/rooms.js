@@ -100,8 +100,7 @@ export function createRoom(type, options = {}) {
           boyDolapEn: 0,
           buzDolapEn: 0,
           buzYanakAdet: 0,
-          ustKorMesafe: 0,
-          altKorMesafe: 0,
+          kademeliMutfak: false,
           tezgahM2: 0
         }
       };

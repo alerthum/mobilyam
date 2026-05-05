@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { ChefHat, ChevronDown, ChevronUp } from "lucide-react";
 import Field from "../components/inputs/Field.jsx";
 import DecimalInput from "../components/inputs/DecimalInput.jsx";
+import Toggle from "../components/inputs/Toggle.jsx";
 import Card, { CardHeader } from "../components/ui/Card.jsx";
 import IconButton from "../components/ui/IconButton.jsx";
 import { getMutfakM2Breakdown } from "../utils/calculations.js";
@@ -13,13 +14,12 @@ const FIELDS = [
   { key: "doorWidth", label: "Kapı genişliği", suffix: "cm" },
   { key: "boyDolapEn", label: "Boy dolap eni", suffix: "cm" },
   { key: "buzDolapEn", label: "Buzdolabı dolabı eni", suffix: "cm" },
-  { key: "buzYanakAdet", label: "Buzdolabı yanak", suffix: "adet", integer: true },
-  { key: "ustKorMesafe", label: "Üst kör mesafesi", suffix: "cm" },
-  { key: "altKorMesafe", label: "Alt kör mesafesi", suffix: "cm" }
+  { key: "buzYanakAdet", label: "Buzdolabı yanak", suffix: "adet", integer: true }
 ];
 
 export default function MutfakModule({ room, onChange }) {
   const basic = room.basic || {};
+  const kademeliMutfak = Boolean(basic.kademeliMutfak);
   const [ozetOpen, setOzetOpen] = useState(false);
 
   const breakdown = useMemo(() => getMutfakM2Breakdown(basic), [basic]);
@@ -36,6 +36,18 @@ export default function MutfakModule({ room, onChange }) {
         subtitle="Excel maliyet raporuyla uyumlu hesap"
         accent="bg-accent-100 text-accent-600"
       />
+      <div className="mt-3">
+        <Toggle
+          checked={kademeliMutfak}
+          onChange={(v) => patch("kademeliMutfak", v)}
+          label="Kademeli mutfak"
+          description={
+            kademeliMutfak
+              ? "Üst dolap yüzölçümüne %30 ilave uygulanır."
+              : "İşaretlenirse üst dolap alanına %30 ilave uygulanır."
+          }
+        />
+      </div>
       <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {FIELDS.map((f) => (
           <Field key={f.key} label={f.label}>
