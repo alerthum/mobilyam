@@ -4,6 +4,12 @@
  */
 const DEFAULT_CHAMBER_ID = "CH-DEFAULT";
 
+const DEFAULT_COUNTERTOP_CATALOG = [
+  { id: "ct-granit", name: "Granit Tezgah", unit: "mtül", price: 0 },
+  { id: "ct-cimstone", name: "Çimstone Tezgah", unit: "mtül", price: 0 },
+  { id: "ct-porselen", name: "Porselen Tezgah", unit: "mtül", price: 0 }
+];
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value || {}));
 }
@@ -42,6 +48,11 @@ function migrateInboundState(remote) {
       ),
       servicesCatalog: clone(
         Array.isArray(s.servicesCatalog) ? s.servicesCatalog : []
+      ),
+      countertopCatalog: clone(
+        Array.isArray(s.countertopCatalog) && s.countertopCatalog.length
+          ? s.countertopCatalog
+          : DEFAULT_COUNTERTOP_CATALOG
       )
     };
 
@@ -107,7 +118,8 @@ function migrateInboundState(remote) {
           broadcasts: [],
           qualities: [],
           hardwarePackages: [],
-          servicesCatalog: []
+          servicesCatalog: [],
+          countertopCatalog: clone(DEFAULT_COUNTERTOP_CATALOG)
         });
       }
     });
@@ -132,7 +144,8 @@ function migrateInboundState(remote) {
         broadcasts: [],
         qualities: [],
         hardwarePackages: [],
-        servicesCatalog: []
+        servicesCatalog: [],
+        countertopCatalog: clone(DEFAULT_COUNTERTOP_CATALOG)
       });
     });
 
@@ -226,11 +239,14 @@ function migrateProjectsToStandaloneQuotes(s) {
 
 function uniqCatalog(items, key = "id") {
   const m = new Map();
-  (items || []).forEach((item) => {
-    if (item != null && item[key] != null) {
-      const k = String(item[key]);
-      if (!m.has(k)) m.set(k, item);
-    }
+  (items || []).forEach((item, index) => {
+    if (item == null) return;
+    let k =
+      item[key] != null && String(item[key]).trim() !== ""
+        ? String(item[key])
+        : `__row_${index}`;
+    if (m.has(k)) k = `${k}_${index}`;
+    m.set(k, item);
   });
   return [...m.values()];
 }
@@ -273,6 +289,10 @@ function consolidatePrimaryUshakTenant(s) {
       ...(Array.isArray(primary.servicesCatalog) ? primary.servicesCatalog : []),
       ...(Array.isArray(b?.servicesCatalog) ? b.servicesCatalog : [])
     ]);
+    primary.countertopCatalog = uniqCatalog([
+      ...(Array.isArray(primary.countertopCatalog) ? primary.countertopCatalog : []),
+      ...(Array.isArray(b?.countertopCatalog) ? b.countertopCatalog : [])
+    ]);
     primary.broadcasts = [
       ...(Array.isArray(primary.broadcasts) ? primary.broadcasts : []),
       ...(Array.isArray(b?.broadcasts) ? b.broadcasts : [])
@@ -282,6 +302,10 @@ function consolidatePrimaryUshakTenant(s) {
   primary.qualities = uniqCatalog(primary.qualities || []);
   primary.hardwarePackages = uniqCatalog(primary.hardwarePackages || []);
   primary.servicesCatalog = uniqCatalog(primary.servicesCatalog || []);
+  primary.countertopCatalog = uniqCatalog(primary.countertopCatalog || []);
+  if (!primary.countertopCatalog.length) {
+    primary.countertopCatalog = clone(DEFAULT_COUNTERTOP_CATALOG);
+  }
 
   s.chambers = [primary];
 
@@ -300,6 +324,7 @@ function consolidatePrimaryUshakTenant(s) {
   s.qualities = clone(primary.qualities || []);
   s.hardwarePackages = clone(primary.hardwarePackages || []);
   s.servicesCatalog = clone(primary.servicesCatalog || []);
+  s.countertopCatalog = clone(primary.countertopCatalog || []);
 
   s.chamber = s.chamber && typeof s.chamber === "object" ? { ...s.chamber } : {};
   s.chamber.chamberName =

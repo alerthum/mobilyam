@@ -1,6 +1,6 @@
 import React from "react";
 import clsx from "clsx";
-import logoUrl from "../../assets/mobar-logo.png";
+import logoUrl from "../../assets/ushak-mobar-logo.png";
 
 /**
  * MOBAR 2026 — proje genelinde kullanılan reusable logo bileşeni.

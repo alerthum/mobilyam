@@ -2,7 +2,7 @@
  * Yokus Mobilya — merkezi hesaplama motoru.
  *
  * Tüm kurallar tek dosyada toplanmıştır. Tüm modüller (gardirop, banyo,
- * vestiyer, mutfak, ofis) buradaki yardımcılarla çalışır.
+ * vestiyer, mutfak, ofis, balkon) buradaki yardımcılarla çalışır.
  *
  * NOT: Cm cinsinden gelen ölçüler m²'ye çevrilirken /10000'e bölünür.
  */
@@ -425,6 +425,53 @@ export function calcOfis(basic) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                           İŞ KURALLARI: BALKON                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Balkon modülü:
+ *  - Kombi dolabı: en × boy → m²
+ *  - Balkon dolabı: ölçüler en, boy, derinlik; panel eşdeğeri en×boy m² üzerinden.
+ *    Derinlik ≥ 60 cm ise +%30 (×1.30). 60 cm altında ilave yok.
+ */
+export function calcBalkon(room) {
+  const kw = num(room.kombiWidth);
+  const kh = num(room.kombiHeight);
+  const bw = num(room.balkonWidth);
+  const bh = num(room.balkonHeight);
+  const bd = num(room.balkonDepth);
+
+  const kombiM2 = kw > 0 && kh > 0 ? cmCmToM2(kw, kh) : 0;
+  const balkonBase = bw > 0 && bh > 0 ? cmCmToM2(bw, bh) : 0;
+  const depthFactor = bd >= 60 ? 1.3 : 1;
+  const balkonM2 = balkonBase * depthFactor;
+
+  const breakdown = [];
+  if (kombiM2 > 0) {
+    breakdown.push({
+      label: "Kombi dolabı",
+      m2: round(kombiM2, 3),
+      formula: "en × boy"
+    });
+  }
+  if (balkonBase > 0) {
+    const depthPart = bd >= 60 ? " × 1.30 (derinlik ≥ 60 cm)" : "";
+    breakdown.push({
+      label: "Balkon dolabı",
+      m2: round(balkonM2, 3),
+      formula: `en × boy${depthPart}`.trim() || "en × boy",
+      meta: bd > 0 ? `Derinlik: ${bd} cm` : undefined
+    });
+  }
+
+  return {
+    type: "balkon",
+    panelEquivalentM2: round(kombiM2 + balkonM2, 3),
+    breakdown
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /*                       Oda ↦ m² eşdeğeri (dispatcher)                        */
 /* -------------------------------------------------------------------------- */
 
@@ -434,6 +481,8 @@ export function calculateRoomMetrics(room) {
     case "wardrobe":
     case "bedroom":
       return calcGardirop(room);
+    case "balkon":
+      return calcBalkon(room);
     case "banyo":
     case "bathroom":
       return calcBanyo(room.basic || room);
@@ -465,10 +514,15 @@ export function calculateRoomMetrics(room) {
  *   `baseOfficial`). Cam, ek hırdavat ile aynı mantıkta ayrı kalem; ek hırdavat
  *   ve cam bu tutarı değiştirmez (teklif toplamında ayrı satırlar).
  *
+ * - Mutfak tezgahı: `countertopTotal` = mtül × birim fiyat (katalog adı `countertopName`);
+ *   teklif brüt toplamına `calculateQuoteTotals` içinde eklenir.
+ *
  * - `customHardware`: manuel ek hırdavat; tekli oda özeti bileşen olarak döner,
  *   teklifte `hardwareExtrasTotal` altında toplanır.
+ *
+ * @param {Array} [countertopCatalog=[]]  Tezgah tipi adı çözümlemesi (mutfak)
  */
-export function calculateRoomPrice(room, quality) {
+export function calculateRoomPrice(room, quality, countertopCatalog = []) {
   const metrics = calculateRoomMetrics(room);
   const sqmPrice = num(quality?.officialSqmPrice);
   const baseOfficial = metrics.panelEquivalentM2 * sqmPrice;
@@ -476,6 +530,20 @@ export function calculateRoomPrice(room, quality) {
   const glassExtra = num(metrics.glassExtra);
 
   const officialPrice = round(baseOfficial, 2);
+
+  let countertopTotal = 0;
+  let countertopName = "";
+  let countertopMtul = 0;
+  let countertopUnitPrice = 0;
+  if (room.type === "mutfak" || room.type === "kitchen") {
+    const b = room.basic || {};
+    countertopMtul = num(b.countertopMtul);
+    countertopUnitPrice = Math.max(0, num(b.countertopUnitPrice));
+    countertopTotal = round(countertopMtul * countertopUnitPrice, 2);
+    const cid = b.countertopCatalogId;
+    const item = (countertopCatalog || []).find((x) => x.id === cid);
+    countertopName = String(item?.name || b.countertopLabel || "").trim();
+  }
 
   return {
     qualityId: quality?.id ?? null,
@@ -486,6 +554,10 @@ export function calculateRoomPrice(room, quality) {
     customHardware: round(customHardware, 2),
     glassExtra: round(glassExtra, 2),
     officialPrice,
+    countertopTotal,
+    countertopName,
+    countertopMtul,
+    countertopUnitPrice,
     metrics
   };
 }
@@ -494,13 +566,13 @@ export function calculateRoomPrice(room, quality) {
 /*                              Teklif toplamı                                 */
 /* -------------------------------------------------------------------------- */
 
-export function calculateQuoteTotals(quote, qualities) {
+export function calculateQuoteTotals(quote, qualities, countertopCatalog = []) {
   const qualityById = new Map((qualities || []).map((q) => [q.id, q]));
   const rooms = (quote.rooms || []).map((room) => {
     const quality =
       (room.selectedQualityId && qualityById.get(room.selectedQualityId)) ||
       (qualities || [])[0];
-    const price = calculateRoomPrice(room, quality);
+    const price = calculateRoomPrice(room, quality, countertopCatalog);
     return { room, price };
   });
 
@@ -514,15 +586,24 @@ export function calculateQuoteTotals(quote, qualities) {
     0
   );
 
+  const countertopExtrasTotal = rooms.reduce(
+    (acc, r) => acc + num(r.price.countertopTotal),
+    0
+  );
+
   const services = (quote.services || []).map((line) => ({
     ...line,
     total: round(num(line.quantity) * num(line.price), 2)
   }));
   const servicesTotal = services.reduce((acc, s) => acc + s.total, 0);
 
-  /* Brüt: m²×kalite + cam + ek hırdavat + ek hizmetler */
+  /* Brüt: m²×kalite + tezgah + cam + ek hırdavat + ek hizmetler */
   const officialGrandTotal =
-    officialRoomTotal + glassExtrasTotal + hardwareExtrasTotal + servicesTotal;
+    officialRoomTotal +
+    countertopExtrasTotal +
+    glassExtrasTotal +
+    hardwareExtrasTotal +
+    servicesTotal;
   const rate = Math.min(100, Math.max(0, num(quote.producerDiscountRate)));
   const producerDiscount = officialGrandTotal * (rate / 100);
   const manualDiscount = Math.max(
@@ -533,6 +614,12 @@ export function calculateQuoteTotals(quote, qualities) {
   const totalDiscount = Math.max(producerDiscount, manualDiscount);
   const dealerGrandTotal = officialGrandTotal - totalDiscount;
 
+  /** KDV: net (indirim sonrası) tutar üzerinden; teklif/sözleşme Genel = net + KDV. */
+  const vatIncluded = quote.vatIncluded === true;
+  const vatRate = Math.min(100, Math.max(0, num(quote.vatRate ?? 20)));
+  const vatAmount = vatIncluded ? round(dealerGrandTotal * (vatRate / 100), 2) : 0;
+  const grandTotalWithVat = round(dealerGrandTotal + vatAmount, 2);
+
   return {
     rooms,
     services,
@@ -540,12 +627,17 @@ export function calculateQuoteTotals(quote, qualities) {
       officialRoomTotal: round(officialRoomTotal, 2),
       glassExtrasTotal: round(glassExtrasTotal, 2),
       hardwareExtrasTotal: round(hardwareExtrasTotal, 2),
+      countertopExtrasTotal: round(countertopExtrasTotal, 2),
       servicesTotal: round(servicesTotal, 2),
       officialGrandTotal: round(officialGrandTotal, 2),
       producerDiscount: round(producerDiscount, 2),
       generalDiscount: round(manualDiscount, 2),
       totalDiscount: round(totalDiscount, 2),
-      dealerGrandTotal: round(dealerGrandTotal, 2)
+      dealerGrandTotal: round(dealerGrandTotal, 2),
+      vatIncluded,
+      vatRate,
+      vatAmount,
+      grandTotalWithVat
     }
   };
 }

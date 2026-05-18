@@ -25,12 +25,13 @@ function ymKey(dateStr) {
   return dateStr.slice(0, 7);
 }
 
-function quoteExtrasFlags(quote, qualities) {
-  const c = calculateQuoteTotals(quote, qualities);
+function quoteExtrasFlags(quote, qualities, countertopCatalog) {
+  const c = calculateQuoteTotals(quote, qualities, countertopCatalog);
   const hw = c.totals.hardwareExtrasTotal > 0;
   const glass = c.totals.glassExtrasTotal > 0;
   const svc = c.totals.servicesTotal > 0;
-  return { hw, glass, svc, hasExtras: hw || glass || svc };
+  const ct = c.totals.countertopExtrasTotal > 0;
+  return { hw, glass, svc, ct, hasExtras: hw || glass || svc || ct };
 }
 
 function isConverted(wf) {
@@ -59,6 +60,7 @@ export default function ProducerSummaryPage() {
   const user = useCurrentUser();
   const { remote } = useApp();
   const qualities = remote?.qualities || [];
+  const countertopCatalog = remote?.countertopCatalog || [];
 
   const rows = useMemo(() => {
     const quotes =
@@ -70,7 +72,7 @@ export default function ProducerSummaryPage() {
     quotes.forEach((q) => {
       if (!isProjectActive(q)) return;
       const wf = quoteWorkflow(q);
-      const calc = calculateQuoteTotals(q, qualities);
+      const calc = calculateQuoteTotals(q, qualities, countertopCatalog);
       list.push({
         project: q,
         quote: q,
@@ -78,13 +80,13 @@ export default function ProducerSummaryPage() {
         ym: ymKey(q.date),
         wf,
         projectName: q.projectName,
-        total: calc.totals.dealerGrandTotal,
-        ...quoteExtrasFlags(q, qualities),
+        total: calc.totals.grandTotalWithVat,
+        ...quoteExtrasFlags(q, qualities, countertopCatalog),
         converted: isConverted(wf)
       });
     });
     return list;
-  }, [remote?.quotes, qualities, user?.id, user?.role]);
+  }, [remote?.quotes, qualities, countertopCatalog, user?.id, user?.role]);
 
   const analytics = useMemo(() => buildProducerAnalytics(rows, qualities), [rows, qualities]);
 
@@ -140,7 +142,7 @@ export default function ProducerSummaryPage() {
     const topR = analytics.topRooms[0]?.[0];
     const topQ = analytics.topQualities[0]?.[0];
     lines.push(
-      `Toplam ${kpis.totalQ} teklif, ${kpis.uniqueProjects} projede; net tutarlar toplamı ${formatCurrency(kpis.sumTot)}.`
+      `Toplam ${kpis.totalQ} teklif, ${kpis.uniqueProjects} projede; ödenecek tutarlar toplamı ${formatCurrency(kpis.sumTot)} (KDV seçili tekliflerde dahil).`
     );
     lines.push(
       `Sözleşme / tamamlandı olan ${kpis.conv} teklif (${(kpis.convRate * 100).toFixed(1)}%).`

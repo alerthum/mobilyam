@@ -36,6 +36,25 @@ function readSeedState() {
   return repairPayload(JSON.parse(fs.readFileSync(seedPath, "utf8")));
 }
 
+/** Postgres yokken (npm run dev) kalıcı depolama — yerel disk. */
+const LOCAL_STATE_PATH = path.join(process.cwd(), "data", "local-app-state.json");
+
+function readLocalFileState() {
+  if (!fs.existsSync(LOCAL_STATE_PATH)) return null;
+  try {
+    return repairPayload(JSON.parse(fs.readFileSync(LOCAL_STATE_PATH, "utf8")));
+  } catch (e) {
+    console.warn("[state] Yerel state dosyasi okunamadi:", e.message);
+    return null;
+  }
+}
+
+function writeLocalFileState(nextState) {
+  const dir = path.dirname(LOCAL_STATE_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(LOCAL_STATE_PATH, JSON.stringify(repairPayload(nextState), null, 2), "utf8");
+}
+
 async function ensureSchema(sql) {
   await sql`
     CREATE TABLE IF NOT EXISTS app_state (
@@ -89,7 +108,11 @@ async function getRemoteState() {
     }
   }
 
-  return { data: migrateInboundState(readSeedState()), storageMode: "demo" };
+  const local = readLocalFileState();
+  if (local) {
+    return { data: migrateInboundState(local), storageMode: "local-file" };
+  }
+  return { data: migrateInboundState(readSeedState()), storageMode: "local-file" };
 }
 
 async function saveRemoteState(nextState) {
@@ -105,7 +128,13 @@ async function saveRemoteState(nextState) {
     }
   }
 
-  return { ok: false, storageMode: "demo" };
+  try {
+    writeLocalFileState(patched);
+    return { ok: true, storageMode: "local-file" };
+  } catch (error) {
+    console.warn("[state] Yerel dosyaya yazilamadi:", error.message);
+    return { ok: false, storageMode: "local-file" };
+  }
 }
 
 module.exports = {

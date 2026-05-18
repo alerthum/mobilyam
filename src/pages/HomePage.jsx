@@ -231,6 +231,7 @@ export default function HomePage({ onCreateProject, onOpenQuote }) {
                   key={p.id}
                   project={p}
                   qualities={remote?.qualities || []}
+                  countertopCatalog={remote?.countertopCatalog || []}
                   onOpen={() => {
                     onOpenQuote?.(p.id, p.id);
                   }}
@@ -245,8 +246,8 @@ export default function HomePage({ onCreateProject, onOpenQuote }) {
   );
 }
 
-function ProjectRow({ project, qualities, onOpen, onDelete, readOnly }) {
-  const calc = calculateQuoteTotals(project, qualities);
+function ProjectRow({ project, qualities, countertopCatalog, onOpen, onDelete, readOnly }) {
+  const calc = calculateQuoteTotals(project, qualities, countertopCatalog || []);
   const activeProject = isProjectActive(project);
   return (
     <div
@@ -279,9 +280,17 @@ function ProjectRow({ project, qualities, onOpen, onDelete, readOnly }) {
           {project.customerName || "—"}{project.customerPhone ? ` · ${project.customerPhone}` : ""}
         </p>
         {calc && (
-          <p className="text-sm font-extrabold text-brand-600 mt-1 tabular-nums">
-            {formatCurrency(calc.totals.dealerGrandTotal)}
-          </p>
+          <>
+            <p className="text-sm font-extrabold text-brand-600 mt-1 tabular-nums">
+              {formatCurrency(calc.totals.grandTotalWithVat)}
+            </p>
+            {calc.totals.vatIncluded ? (
+              <p className="text-[10px] text-ink-500 mt-0.5 tabular-nums">
+                Net {formatCurrency(calc.totals.dealerGrandTotal)} + KDV{" "}
+                {formatCurrency(calc.totals.vatAmount)}
+              </p>
+            ) : null}
+          </>
         )}
       </div>
       <div className="flex items-center gap-1 shrink-0">

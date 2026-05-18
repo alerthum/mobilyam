@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { ArrowLeft, Save, Wallet } from "lucide-react";
 import GardiropModule from "../../modules/GardiropModule.jsx";
+import BalkonModule from "../../modules/BalkonModule.jsx";
 import BanyoModule from "../../modules/BanyoModule.jsx";
 import VestiyerModule from "../../modules/VestiyerModule.jsx";
 import MutfakModule from "../../modules/MutfakModule.jsx";
 import OfisModule from "../../modules/OfisModule.jsx";
+import MutfakTezgahSection from "./MutfakTezgahSection.jsx";
 import QualityPicker from "./QualityPicker.jsx";
 import Card, { CardHeader } from "../ui/Card.jsx";
 import KpiCard from "../ui/KpiCard.jsx";
@@ -12,6 +14,7 @@ import Field from "../inputs/Field.jsx";
 import TextInput from "../inputs/TextInput.jsx";
 import MoneyInput from "../inputs/MoneyInput.jsx";
 import Button from "../ui/Button.jsx";
+import { useApp } from "../../context/AppContext.jsx";
 import { calculateRoomPrice } from "../../utils/calculations.js";
 import { formatCurrency, formatNumber } from "../../utils/format.js";
 import { getRoomDefinition } from "../../config/rooms.js";
@@ -23,6 +26,7 @@ import { getRoomDefinition } from "../../config/rooms.js";
  */
 const ROOM_MODULE_BY_TYPE = {
   gardirop: GardiropModule,
+  balkon: BalkonModule,
   banyo: BanyoModule,
   vestiyer: VestiyerModule,
   mutfak: MutfakModule,
@@ -40,8 +44,9 @@ function RoomTypeModule({ type, room, onChange }) {
  *
  * Kayıt akışı:
  *  1) Oda adı
- *  2) Modül ölçüleri (gardırop / mutfak / banyo / vestiyer / ofis)
+ *  2) Modül ölçüleri (gardırop / balkon / mutfak / banyo / vestiyer / ofis)
  *  3) Kalite seçimi
+ *  3b) Mutfak: Tezgah özellikleri (kalite altında)
  *  4) Ek hırdavat bedeli
  *  5) "Odayı Kaydet" → onSave(room) ile commit
  *
@@ -49,11 +54,13 @@ function RoomTypeModule({ type, room, onChange }) {
  */
 export default function RoomEditor({ initialRoom, qualities, onSave, onCancel }) {
   const [room, setRoom] = useState(initialRoom);
+  const { remote } = useApp();
+  const countertopCatalog = remote?.countertopCatalog || [];
   const def = getRoomDefinition(room.type);
   const Icon = def.icon;
   const quality =
     qualities.find((q) => q.id === room.selectedQualityId) || qualities[0];
-  const price = calculateRoomPrice(room, quality);
+  const price = calculateRoomPrice(room, quality, countertopCatalog);
 
   return (
     <div className="space-y-4">
@@ -105,13 +112,22 @@ export default function RoomEditor({ initialRoom, qualities, onSave, onCancel })
             calcRoomPrice={(q) =>
               calculateRoomPrice(
                 { ...room, customHardwarePrice: 0 },
-                q
+                q,
+                countertopCatalog
               )
             }
             onChange={(id) => setRoom({ ...room, selectedQualityId: id })}
           />
         </div>
       </Card>
+
+      {(room.type === "mutfak" || room.type === "kitchen") && (
+        <MutfakTezgahSection
+          room={room}
+          onChange={setRoom}
+          countertopCatalog={countertopCatalog}
+        />
+      )}
 
       {/* 4) Ek hırdavat */}
       <Card>

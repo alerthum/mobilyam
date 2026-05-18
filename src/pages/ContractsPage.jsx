@@ -140,6 +140,7 @@ export default function ContractsPage({ onOpenContract }) {
               qualities={remote?.qualities || []}
               issuer={user}
               chamberBannerName={remote?.chamber?.chamberName}
+              countertopCatalog={remote?.countertopCatalog || []}
             />
           </div>
         )}
@@ -193,7 +194,11 @@ export default function ContractsPage({ onOpenContract }) {
         ) : (
           <div className="space-y-3">
             {filteredItems.map(({ project, quote }) => {
-              const calc = calculateQuoteTotals(quote, remote?.qualities || []);
+              const calc = calculateQuoteTotals(
+                quote,
+                remote?.qualities || [],
+                remote?.countertopCatalog || []
+              );
               const wf = quoteWorkflow(quote);
               return (
                 <Card key={`${project.id}-${quote.id}`} padded={false} interactive>
@@ -212,8 +217,14 @@ export default function ContractsPage({ onOpenContract }) {
                       </div>
                       <p className="text-xs text-ink-500 truncate">{project.customerName || "—"}</p>
                       <p className="text-lg yk-display text-ink-900 mt-1 tabular-nums">
-                        {formatCurrency(calc.totals.dealerGrandTotal)}
+                        {formatCurrency(calc.totals.grandTotalWithVat)}
                       </p>
+                      {calc.totals.vatIncluded ? (
+                        <p className="text-[11px] text-ink-500 mt-0.5 tabular-nums">
+                          Net {formatCurrency(calc.totals.dealerGrandTotal)} · KDV{" "}
+                          {formatCurrency(calc.totals.vatAmount)}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2 shrink-0 justify-end">
                       <Button

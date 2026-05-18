@@ -148,7 +148,8 @@ export default function UsersPage() {
       broadcasts: [],
       qualities: [],
       hardwarePackages: [],
-      servicesCatalog: []
+      servicesCatalog: [],
+      countertopCatalog: []
     });
   }
 

@@ -4,15 +4,18 @@ import Card from "../ui/Card.jsx";
 import IconButton from "../ui/IconButton.jsx";
 import Badge from "../ui/Badge.jsx";
 import { getRoomDefinition } from "../../config/rooms.js";
+import { useApp } from "../../context/AppContext.jsx";
 import { calculateRoomPrice } from "../../utils/calculations.js";
 import { formatCurrency, formatNumber } from "../../utils/format.js";
 
 export default function RoomCard({ room, qualities, onEdit, onDelete }) {
   const def = getRoomDefinition(room.type);
   const Icon = def.icon;
+  const { remote } = useApp();
+  const countertopCatalog = remote?.countertopCatalog || [];
   const quality =
     qualities.find((q) => q.id === room.selectedQualityId) || qualities[0];
-  const price = calculateRoomPrice(room, quality);
+  const price = calculateRoomPrice(room, quality, countertopCatalog);
 
   return (
     <div className="yk-card p-4 sm:p-5 flex items-start gap-3">
@@ -41,6 +44,9 @@ export default function RoomCard({ room, qualities, onEdit, onDelete }) {
             <Badge variant={room.kapakli ? "accent" : "default"}>
               {room.kapakli ? "Kapaklı" : "Kapaksız"}
             </Badge>
+          )}
+          {price.countertopTotal > 0 && (
+            <Badge variant="accent">+ Tezgah {formatCurrency(price.countertopTotal)}</Badge>
           )}
           {price.glassExtra > 0 && (
             <Badge variant="accent">

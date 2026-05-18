@@ -27,7 +27,12 @@ export default function ProfilePage() {
   const myQuotes = (remote?.quotes || []).filter((q) => q.ownerUserId === user?.id);
   const totalRevenue = myQuotes.reduce(
     (s, q) =>
-      s + calculateQuoteTotals(q, remote?.qualities || []).totals.dealerGrandTotal,
+      s +
+      calculateQuoteTotals(
+        q,
+        remote?.qualities || [],
+        remote?.countertopCatalog || []
+      ).totals.grandTotalWithVat,
     0
   );
 

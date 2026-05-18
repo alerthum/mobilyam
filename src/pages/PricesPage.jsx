@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Tag, Plus, Trash2, Save, CheckCircle2, FileDown, GripVertical } from "lucide-react";
 import TopBar from "../components/layout/TopBar.jsx";
 import Card, { CardHeader } from "../components/ui/Card.jsx";
@@ -32,13 +32,14 @@ function reorderListByIndex(list, fromIndex, toIndex) {
 }
 
 export default function PricesPage() {
-  const { remote, updateRemote, commit, saveNow, saveStatus } = useApp();
+  const { remote, updateRemote, commit, saveNow, saveStatus, storageMode } = useApp();
   const user = useCurrentUser();
   const confirm = useConfirm();
   const toast = useToast();
 
   const qualities = remote?.qualities || [];
   const services = remote?.servicesCatalog || [];
+  const countertops = remote?.countertopCatalog || [];
 
   /** Yalnızca oda yönetimi katalog düzenleyebilir; sistem yöneticisi salt okunur görür. */
   const canEdit = user?.role === "chamber";
@@ -63,6 +64,7 @@ export default function PricesPage() {
   // butonuna bastığında commit edilecek.
   const [qualitiesDirty, setQualitiesDirty] = useState(false);
   const [servicesDirty, setServicesDirty] = useState(false);
+  const [countertopsDirty, setCountertopsDirty] = useState(false);
   const saving = saveStatus === "saving";
 
   function addQuality() {
@@ -158,6 +160,65 @@ export default function PricesPage() {
     }
   }
 
+  async function addCountertop() {
+    const result = await commit((d) => {
+      d.countertopCatalog = d.countertopCatalog || [];
+      d.countertopCatalog.push({
+        id: `ct-${Date.now()}`,
+        name: "Yeni tezgah",
+        unit: "mtül",
+        price: 0
+      });
+    });
+    if (!result?.ok) toast.error("Tezgah satırı sunucuya kaydedilemedi");
+  }
+
+  function updateCountertop(id, mutator) {
+    updateRemote((d) => {
+      const row = d.countertopCatalog?.find((x) => x.id === id);
+      if (row) mutator(row);
+    });
+    setCountertopsDirty(true);
+  }
+
+  async function deleteCountertop(row) {
+    const ok = await confirm({
+      variant: "danger",
+      title: "Tezgah satırı silinsin mi?",
+      description: `"${row.name}" katalogdan kaldırılacak.`,
+      confirmLabel: "Sil",
+      cancelLabel: "Vazgeç"
+    });
+    if (!ok) return;
+    commit((d) => {
+      d.countertopCatalog = (d.countertopCatalog || []).filter((x) => x.id !== row.id);
+    });
+    toast.success("Tezgah satırı silindi");
+  }
+
+  async function saveCountertops() {
+    if (!countertopsDirty || saving) return;
+    const result = await saveNow();
+    if (result?.ok) {
+      setCountertopsDirty(false);
+      toast.success("Tezgah katalogu güncellendi");
+    } else {
+      toast.error("Kayıt başarısız oldu");
+    }
+  }
+
+  function reorderCountertops(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+    updateRemote((d) => {
+      d.countertopCatalog = reorderListByIndex(
+        d.countertopCatalog || [],
+        fromIndex,
+        toIndex
+      );
+    });
+    setCountertopsDirty(true);
+  }
+
   function reorderQualities(fromIndex, toIndex) {
     if (fromIndex === toIndex) return;
     updateRemote((d) => {
@@ -178,16 +239,43 @@ export default function PricesPage() {
     setServicesDirty(true);
   }
 
+  useEffect(() => {
+    if (storageMode !== "local-file" || !canEdit) return;
+    const k = "yk-prices-local-storage-toast";
+    try {
+      if (sessionStorage.getItem(k)) return;
+      sessionStorage.setItem(k, "1");
+    } catch {
+      return;
+    }
+    toast.info(
+      "Yerelde veriler `data/local-app-state.json` dosyasına yazılıyor (PostgreSQL yokken). Granit, Çimstone ve Porselen satırları şablonda hazır; fiyat 0 geçerli bir değer — güncelleyip Tezgah bölümünde «Değişiklikleri Kaydet» ile diske yazabilirsiniz."
+    );
+  }, [storageMode, canEdit, toast]);
+
   return (
     <>
       <TopBar title="Fiyatlar" subtitle="Resmi katalog" />
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
+        {storageMode === "local-file" && (
+          <div className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 leading-relaxed">
+            <strong className="font-semibold">Yerel geliştirme modu:</strong> Kayıtlar veritabanı yerine
+            proje klasöründeki <code className="text-xs bg-amber-100/80 px-1 rounded">data/local-app-state.json</code>{" "}
+            dosyasına yazılıyor. Üç tezgah satırı (Granit, Çimstone, Porselen) varsayılan şablonda zaten var;
+            fiyatları buradan düzenleyip kaydedebilirsiniz (0 ₺ geçerlidir). Canlı sunucuda{" "}
+            <code className="text-xs bg-amber-100/80 px-1 rounded">DATABASE_URL</code> tanımlı olmalıdır.
+          </div>
+        )}
         <div
           ref={catalogPdfRef}
           className="fixed left-0 top-0 z-[60] w-[210mm] max-w-[100vw] max-h-[100vh] overflow-auto opacity-[0.02] pointer-events-none bg-white"
           aria-hidden
         >
-          <CatalogPdfBody qualities={qualities} services={services} />
+          <CatalogPdfBody
+            qualities={qualities}
+            services={services}
+            countertops={countertops}
+          />
         </div>
         <Card padded={false}>
           <div className="p-5 flex flex-wrap items-center justify-between gap-3">
@@ -478,6 +566,144 @@ export default function PricesPage() {
                 onClick={saveServices}
               >
                 {saving && servicesDirty ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        <Card padded={false}>
+          <div className="p-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="yk-eyebrow">Mutfak</p>
+              <h2 className="yk-display text-xl text-ink-900 mt-1">Tezgah özellikleri katalogu</h2>
+              {canEdit && countertops.length > 1 && (
+                <p className="text-xs text-ink-500 mt-1.5 max-w-xl">
+                  Sırayı tutamaçtan sürükleyin; mutfak modülündeki tezgah listesi bu sırayı kullanır.
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={FileDown}
+                onClick={() => exportCatalogPdf("Malzeme-m2-Ek-Hizmetler-Tezgah")}
+              >
+                PDF
+              </Button>
+              {canEdit && (
+                <Button icon={Plus} onClick={addCountertop} size="sm">
+                  Ekle
+                </Button>
+              )}
+            </div>
+          </div>
+          {countertops.length === 0 ? (
+            <div className="p-5">
+              <EmptyState
+                icon={Tag}
+                title="Tezgah kataloğu boş"
+                description="Granit, Çimstone, Porselen vb. tezgah tiplerini burada tanımlayın."
+              />
+            </div>
+          ) : !canEdit ? (
+            <div className="px-3 pb-5 grid sm:grid-cols-2 gap-3">
+              {countertops.map((c) => (
+                <div
+                  key={c.id}
+                  className="relative overflow-hidden rounded-2xl border border-ink-100 bg-gradient-to-br from-white via-surface-50 to-amber-50/40 p-4 sm:p-5 yk-soft"
+                >
+                  <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-amber-400/15 blur-2xl" />
+                  <p className="relative text-sm font-extrabold text-ink-900 leading-tight">{c.name}</p>
+                  <p className="relative mt-1 text-xs font-semibold text-ink-500 uppercase tracking-wide">
+                    {c.unit || "mtül"} · varsayılan birim fiyat
+                  </p>
+                  <p className="relative mt-3 yk-display text-2xl text-amber-800 tabular-nums">
+                    {formatCurrency(c.price)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="px-3 pb-3 space-y-2">
+              {countertops.map((c, cIdx) => (
+                <div
+                  key={c.id}
+                  className="rounded-xl border border-ink-100 bg-surface-50 p-3 sm:p-4 grid sm:grid-cols-[auto_1fr_120px_180px_auto] gap-3 items-start"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const from = Number(e.dataTransfer.getData("text/plain"));
+                    if (Number.isNaN(from)) return;
+                    reorderCountertops(from, cIdx);
+                  }}
+                >
+                  <div className="flex items-start pt-1 sm:pt-7">
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(cIdx));
+                      }}
+                      className="touch-none rounded-lg p-1.5 text-ink-400 hover:text-ink-600 hover:bg-ink-100/80 cursor-grab active:cursor-grabbing"
+                      aria-label="Sürükleyerek sırayı değiştir"
+                      title="Sürükleyerek sırayı değiştir"
+                    >
+                      <GripVertical size={20} />
+                    </button>
+                  </div>
+                  <Field label="Ad">
+                    <TextInput
+                      value={c.name}
+                      onChange={(v) => updateCountertop(c.id, (x) => (x.name = v))}
+                    />
+                  </Field>
+                  <Field label="Birim (/ mtül)">
+                    <TextInput
+                      value={c.unit || "mtül"}
+                      onChange={(v) => updateCountertop(c.id, (x) => (x.unit = v))}
+                    />
+                  </Field>
+                  <Field label="Varsayılan birim fiyat">
+                    <MoneyInput
+                      value={c.price}
+                      onValueChange={(v) => updateCountertop(c.id, (x) => (x.price = v))}
+                    />
+                  </Field>
+                  <div className="sm:pt-7">
+                    <IconButton
+                      icon={Trash2}
+                      variant="danger"
+                      ariaLabel="Sil"
+                      onClick={() => deleteCountertop(c)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {canEdit && countertops.length > 0 && (
+            <div className="px-5 pb-5 flex items-center justify-end gap-2">
+              {countertopsDirty ? (
+                <span className="text-[11px] font-semibold text-warning-600 inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-warning-500" />
+                  Kaydedilmemiş değişiklik
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold text-success-600 inline-flex items-center gap-1.5">
+                  <CheckCircle2 size={12} />
+                  Katalog güncel
+                </span>
+              )}
+              <Button
+                size="sm"
+                icon={Save}
+                variant={countertopsDirty ? "primary" : "ghost"}
+                disabled={!countertopsDirty || saving}
+                onClick={saveCountertops}
+              >
+                {saving && countertopsDirty ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}
               </Button>
             </div>
           )}

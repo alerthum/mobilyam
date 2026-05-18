@@ -77,11 +77,12 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   const project = quote;
   const qualities = remote?.qualities || [];
   const servicesCatalog = remote?.servicesCatalog || [];
+  const countertopCatalog = remote?.countertopCatalog || [];
 
   const calc = useMemo(() => {
     if (!quote) return null;
-    return calculateQuoteTotals(quote, qualities);
-  }, [quote, qualities]);
+    return calculateQuoteTotals(quote, qualities, countertopCatalog);
+  }, [quote, qualities, countertopCatalog]);
 
   useEffect(() => {
     if (currentUser?.role === "system_admin") {
@@ -151,6 +152,28 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
     } else {
       toast.error("Kayıt başarısız oldu");
     }
+  }
+
+  async function persistVatPatch(mutator) {
+    const result = await commit((d) => {
+      const q = d.quotes?.find((x) => x.id === quoteId);
+      if (!q) return;
+      mutator(q);
+    });
+    if (!result?.ok) toast.error("KDV ayarı kaydedilemedi");
+  }
+
+  async function setQuoteVatIncluded(next) {
+    await persistVatPatch((q) => {
+      q.vatIncluded = next;
+      if (next && (q.vatRate == null || Number.isNaN(Number(q.vatRate)))) q.vatRate = 20;
+    });
+  }
+
+  async function setQuoteVatRate(nextRate) {
+    await persistVatPatch((q) => {
+      q.vatRate = nextRate;
+    });
   }
 
   function syncDiscountFromRate(nextRate) {
@@ -281,11 +304,17 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   }
 
   async function convertToContract() {
+    const totals = calc?.totals;
+    const vatBreakdown =
+      totals?.vatIncluded === true
+        ? ` Net tutar ${formatCurrency(totals.dealerGrandTotal)} + KDV (%${totals.vatRate}): ${formatCurrency(totals.vatAmount)} → Genel: ${formatCurrency(totals.grandTotalWithVat)}.`
+        : "";
     const ok = await confirm({
       variant: "info",
       title: "Sözleşmeye dökülsün mü?",
       description:
-        "Durum güncellenir ve bu teklif sözleşme aşamasına alınır. PDF başlığı buna göre değişir.",
+        "Durum güncellenir ve bu teklif sözleşme aşamasına alınır. PDF başlığı buna göre değişir." +
+        (vatBreakdown ? ` ${vatBreakdown}` : ""),
       confirmLabel: "Sözleşmeye çevir",
       cancelLabel: "Vazgeç"
     });
@@ -341,12 +370,19 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
           qualities={qualities}
           issuer={currentUser}
           chamberBannerName={remote?.chamber?.chamberName}
+          countertopCatalog={countertopCatalog}
         />
       </div>
 
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
         {/* KPI'lar */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div
+          className={
+            calc.totals.vatIncluded
+              ? "grid grid-cols-2 lg:grid-cols-5 gap-3"
+              : "grid grid-cols-2 lg:grid-cols-4 gap-3"
+          }
+        >
           <KpiCard
             label="Toplam Alan"
             value={formatNumber(
@@ -357,7 +393,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             accent="success"
           />
           <KpiCard
-            label="Genel Toplam"
+            label="Brüt (indirimsiz)"
             value={formatCurrency(calc.totals.officialGrandTotal)}
             icon={Receipt}
             accent="ink"
@@ -369,11 +405,21 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             icon={Plus}
           />
           <KpiCard
-            label="Net Tutar"
+            label="Net tutar (KDV hariç)"
             value={formatCurrency(calc.totals.dealerGrandTotal)}
+            hint={calc.totals.vatIncluded ? "KDV öncesi" : undefined}
             icon={Wallet}
             accent="brand"
           />
+          {calc.totals.vatIncluded ? (
+            <KpiCard
+              label="Genel (KDV dahil)"
+              value={formatCurrency(calc.totals.grandTotalWithVat)}
+              hint={`KDV %${calc.totals.vatRate}`}
+              icon={Receipt}
+              accent="accent"
+            />
+          ) : null}
         </div>
 
         {/* Müşteri & teklif bilgileri */}
@@ -664,11 +710,16 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               />
             </Field>
           </div>
-          <div className="mt-4 grid gap-3 text-sm grid-cols-1 sm:grid-cols-2 xl:grid-cols-7">
+          <div className="mt-4 grid gap-3 text-sm grid-cols-1 sm:grid-cols-2 xl:grid-cols-8">
             <SummaryLine
               label="Resmi oda (m²×kalite)"
-              hint="Yalnızca ölçü × seçilen kalite birim fiyatı (cam ve ek hırdavat dahil değildir)."
+              hint="Yalnızca ölçü × seçilen kalite birim fiyatı (tezgah, cam ve ek hırdavat dahil değildir)."
               value={formatCurrency(calc.totals.officialRoomTotal)}
+            />
+            <SummaryLine
+              label="Tezgah (mutfak)"
+              hint="Mutfak satırlarında girilen mtül × birim fiyat"
+              value={formatCurrency(calc.totals.countertopExtrasTotal)}
             />
             <SummaryLine
               label="Ek kalemler toplamı"
@@ -682,7 +733,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             />
             <SummaryLine
               label={`Brüt (indirimsiz)`}
-              hint="m²×kalite + cam + ek hırdavat + ek hizmetler"
+              hint="m²×kalite + tezgah + cam + ek hırdavat + ek hizmetler"
               value={formatCurrency(calc.totals.officialGrandTotal)}
               tone="ink"
             />
@@ -693,10 +744,31 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             />
             <SummaryLine
               label="Net teklif tutarı"
+              hint={
+                calc.totals.vatIncluded
+                  ? "İndirim sonrası net tutar (KDV hariç)"
+                  : undefined
+              }
               value={formatCurrency(calc.totals.dealerGrandTotal)}
               tone="brand"
               big
             />
+            {calc.totals.vatIncluded ? (
+              <>
+                <SummaryLine
+                  label={`KDV (${calc.totals.vatRate}%)`}
+                  hint="Net tutar üzerinden"
+                  value={formatCurrency(calc.totals.vatAmount)}
+                  tone="warning"
+                />
+                <SummaryLine
+                  label="Genel toplam (KDV dahil)"
+                  value={formatCurrency(calc.totals.grandTotalWithVat)}
+                  tone="brand"
+                  big
+                />
+              </>
+            ) : null}
           </div>
           <div className="mt-4 flex items-center justify-end gap-2">
             {discountDirty ? (
@@ -726,8 +798,8 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
 
         <Card>
           <CardHeader
-            title="Teklif süreci"
-            subtitle="Aktif, pasif ve sözleşme adımları"
+            title="Teklif süreci + Kdv bilgileri"
+            subtitle="Durum, PDF başlığı ve net tutar üzerinden KDV"
             action={
               <IconButton
                 icon={sectionsOpen.flow ? ChevronUp : ChevronDown}
@@ -738,7 +810,53 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             }
           />
           {sectionsOpen.flow && (
-          <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-3 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+              <label className="inline-flex items-center gap-2.5 rounded-xl border border-ink-200 bg-surface-50 px-3 py-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
+                  checked={quote.vatIncluded === true}
+                  onChange={(e) => void setQuoteVatIncluded(e.target.checked)}
+                  disabled={saving}
+                />
+                <span className="text-sm font-semibold text-ink-900">+ KDV</span>
+              </label>
+              {quote.vatIncluded === true ? (
+                <div className="flex-1 min-w-[200px] max-w-xs">
+                  <Field label="KDV oranı (%)" hint="İndirim sonrası net tutar üzerinden hesaplanır">
+                    <PercentInput
+                      value={quote.vatRate ?? 20}
+                      onValueChange={(v) => void setQuoteVatRate(v)}
+                      disabled={saving}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-xl border border-ink-100 bg-surface-50 px-3 py-3 grid gap-2 sm:grid-cols-3">
+              <SummaryLine
+                label="Net tutar"
+                hint="KDV hariç"
+                value={formatCurrency(calc.totals.dealerGrandTotal)}
+              />
+              <SummaryLine
+                label={`KDV (${calc.totals.vatIncluded ? `${calc.totals.vatRate}%` : "—"})`}
+                value={
+                  calc.totals.vatIncluded ? formatCurrency(calc.totals.vatAmount) : formatCurrency(0)
+                }
+              />
+              <SummaryLine
+                label="Genel"
+                hint={calc.totals.vatIncluded ? "Net + KDV" : "KDV kapalı = net"}
+                value={formatCurrency(calc.totals.grandTotalWithVat)}
+                tone="brand"
+                big
+              />
+            </div>
+
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between pt-1 border-t border-ink-100">
             <div className="text-xs font-semibold text-ink-600">
               Durum: <span className="text-ink-900">{WORKFLOW_LABELS[quoteWorkflow(quote)] || "Hazırlanıyor"}</span>
             </div>
@@ -762,6 +880,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
                 Sözleşme aşamasında başlık &quot;Sözleşme&quot; olur.
               </p>
             </div>
+          </div>
           </div>
           )}
         </Card>

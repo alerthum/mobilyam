@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState
 } from "react";
+import { flushSync } from "react-dom";
 import * as api from "../api/client.js";
 
 /**
@@ -88,8 +89,19 @@ export function AppProvider({ children }) {
   // O an ki en güncel state'i (veya verilen state'i) sunucuya kaydet.
   const saveNow = useCallback(
     async (overrideState) => {
-      const target = overrideState || remoteRef.current;
-      return persist(target);
+      if (overrideState) {
+        return persist(overrideState);
+      }
+      let snapshot = null;
+      flushSync(() => {
+        setRemote((current) => {
+          if (!current) return current;
+          snapshot = structuredClone(current);
+          return current;
+        });
+      });
+      if (!snapshot) return { ok: false };
+      return persist(snapshot);
     },
     [persist]
   );

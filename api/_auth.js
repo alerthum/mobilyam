@@ -7,6 +7,18 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value || {}));
 }
 
+/**
+ * İstemci gövdesinde alan yoksa undefined dön — sunucudaki mevcut katalog ezilmesin.
+ * migrateInboundState(inc) eksik alanlarda varsayılan üretir; bu yüzden ham gövdeye bakılır.
+ */
+function catalogPatchFromIncoming(incomingState, key) {
+  const raw = incomingState && typeof incomingState === "object" ? incomingState : {};
+  if (!Object.prototype.hasOwnProperty.call(raw, key)) return undefined;
+  const v = raw[key];
+  if (!Array.isArray(v)) return [];
+  return clone(v);
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -110,7 +122,8 @@ function createEmptyChamberBlock(cid, chamberName = "") {
     broadcasts: [],
     qualities: [],
     hardwarePackages: [],
-    servicesCatalog: []
+    servicesCatalog: [],
+    countertopCatalog: []
   };
 }
 
@@ -277,6 +290,7 @@ function filterStateForUser(remoteState, user) {
       qualities: [],
       hardwarePackages: [],
       servicesCatalog: [],
+      countertopCatalog: [],
       chamberId: undefined
     };
   }
@@ -285,6 +299,7 @@ function filterStateForUser(remoteState, user) {
   const block = pickChamberBlock(baseState, cid);
   const qualities = clone(block?.qualities || []);
   const servicesCatalog = clone(block?.servicesCatalog || []);
+  const countertopCatalog = clone(block?.countertopCatalog || []);
   const hardwarePackages = clone(block?.hardwarePackages || []);
 
   const mergedChamberBanner = {
@@ -301,6 +316,7 @@ function filterStateForUser(remoteState, user) {
       qualities,
       hardwarePackages,
       servicesCatalog,
+      countertopCatalog,
       users: (baseState.users || []).filter(
         (item) =>
           !item.hiddenFromManagement &&
@@ -319,6 +335,7 @@ function filterStateForUser(remoteState, user) {
     qualities,
     hardwarePackages,
     servicesCatalog,
+    countertopCatalog,
     users: (baseState.users || []).filter((item) => item.id === user.id),
     quotes: (baseState.quotes || []).filter(
       (quote) => quote.ownerUserId === user.id && quote.chamberId === cid
@@ -328,6 +345,10 @@ function filterStateForUser(remoteState, user) {
 
 function mergeStateForUser(existingState, incomingState, user) {
   const nextState = clone(migrateInboundState(existingState));
+  const rawQualities = catalogPatchFromIncoming(incomingState, "qualities");
+  const rawHardware = catalogPatchFromIncoming(incomingState, "hardwarePackages");
+  const rawServices = catalogPatchFromIncoming(incomingState, "servicesCatalog");
+  const rawCountertops = catalogPatchFromIncoming(incomingState, "countertopCatalog");
   const inc = clone(incomingState || {});
   migrateInboundState(inc);
 
@@ -360,6 +381,9 @@ function mergeStateForUser(existingState, incomingState, user) {
           servicesCatalog: Array.isArray(mergedInc.servicesCatalog)
             ? clone(mergedInc.servicesCatalog)
             : block.servicesCatalog || [],
+          countertopCatalog: Array.isArray(mergedInc.countertopCatalog)
+            ? clone(mergedInc.countertopCatalog)
+            : block.countertopCatalog || [],
           hardwarePackages: Array.isArray(mergedInc.hardwarePackages)
             ? clone(mergedInc.hardwarePackages)
             : block.hardwarePackages || []
@@ -375,6 +399,7 @@ function mergeStateForUser(existingState, incomingState, user) {
     if (first) {
       nextState.qualities = clone(first.qualities || []);
       nextState.servicesCatalog = clone(first.servicesCatalog || []);
+      nextState.countertopCatalog = clone(first.countertopCatalog || []);
       nextState.hardwarePackages = clone(first.hardwarePackages || []);
     }
 
@@ -399,14 +424,25 @@ function mergeStateForUser(existingState, incomingState, user) {
       minimumProfitRate: inc.chamber?.minimumProfitRate ?? pickChamberBlock(nextState, cid)?.minimumProfitRate
     });
 
-    if (Array.isArray(inc.qualities)) {
-      patchChamberInState(nextState, cid, { qualities: clone(inc.qualities) });
+    if (rawQualities !== undefined) {
+      patchChamberInState(nextState, cid, { qualities: rawQualities });
     }
-    if (Array.isArray(inc.hardwarePackages)) {
-      patchChamberInState(nextState, cid, { hardwarePackages: clone(inc.hardwarePackages) });
+    if (rawHardware !== undefined) {
+      patchChamberInState(nextState, cid, { hardwarePackages: rawHardware });
     }
-    if (Array.isArray(inc.servicesCatalog)) {
-      patchChamberInState(nextState, cid, { servicesCatalog: clone(inc.servicesCatalog) });
+    if (rawServices !== undefined) {
+      patchChamberInState(nextState, cid, { servicesCatalog: rawServices });
+    }
+    if (rawCountertops !== undefined) {
+      patchChamberInState(nextState, cid, { countertopCatalog: rawCountertops });
+    }
+
+    const blk = pickChamberBlock(nextState, cid);
+    if (blk) {
+      nextState.countertopCatalog = clone(blk.countertopCatalog || []);
+      nextState.qualities = clone(blk.qualities || []);
+      nextState.servicesCatalog = clone(blk.servicesCatalog || []);
+      nextState.hardwarePackages = clone(blk.hardwarePackages || []);
     }
 
     nextState.chamber = {

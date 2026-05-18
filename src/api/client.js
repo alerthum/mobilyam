@@ -17,6 +17,7 @@ function getEmptyState() {
     qualities: [],
     hardwarePackages: [],
     servicesCatalog: [],
+    countertopCatalog: [],
     users: [],
     quotes: []
   };
@@ -132,9 +133,12 @@ export async function saveState(remoteState) {
     }
     if (!res.ok) throw new Error("save failed");
     const payload = await res.json();
-    localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(remoteState));
+    const ok = payload.ok !== false;
+    if (ok) {
+      localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(remoteState));
+    }
     return {
-      ok: true,
+      ok,
       storageMode: payload.storageMode || "live",
       auth: payload.auth || getSessionAuth()
     };

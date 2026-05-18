@@ -43,6 +43,11 @@
         { "id": "sokum", "name": "Söküm Bedeli", "unit": "adet", "price": 4200, "defaultQuantity": 0 },
         { "id": "asansor", "name": "Asansör Bedeli", "unit": "adet", "price": 2500, "defaultQuantity": 0 },
         { "id": "tezgah", "name": "Tezgah Uygulaması", "unit": "mt", "price": 4250, "defaultQuantity": 0 }
+      ],
+      "countertopCatalog": [
+        { "id": "ct-granit", "name": "Granit Tezgah", "unit": "mtül", "price": 0 },
+        { "id": "ct-cimstone", "name": "Çimstone Tezgah", "unit": "mtül", "price": 0 },
+        { "id": "ct-porselen", "name": "Porselen Tezgah", "unit": "mtül", "price": 0 }
       ]
     }
   ],
@@ -67,6 +72,11 @@
     { "id": "sokum", "name": "Söküm Bedeli", "unit": "adet", "price": 4200, "defaultQuantity": 0 },
     { "id": "asansor", "name": "Asansör Bedeli", "unit": "adet", "price": 2500, "defaultQuantity": 0 },
     { "id": "tezgah", "name": "Tezgah Uygulaması", "unit": "mt", "price": 4250, "defaultQuantity": 0 }
+  ],
+  "countertopCatalog": [
+    { "id": "ct-granit", "name": "Granit Tezgah", "unit": "mtül", "price": 0 },
+    { "id": "ct-cimstone", "name": "Çimstone Tezgah", "unit": "mtül", "price": 0 },
+    { "id": "ct-porselen", "name": "Porselen Tezgah", "unit": "mtül", "price": 0 }
   ],
   "users": [
     {

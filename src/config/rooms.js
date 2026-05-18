@@ -4,7 +4,8 @@ import {
   Bath,
   ChefHat,
   Briefcase,
-  Shirt
+  Shirt,
+  Home
 } from "lucide-react";
 
 /**
@@ -12,8 +13,9 @@ import {
  * Her oda kendine has alanları "basic" altında, ortak alanları kökte tutar.
  *
  * Türler:
- *  - mutfak     : tavan/duvar/boy/buz vs.
  *  - gardirop   : en/boy + kapakli toggle + komidin/karyola/şifonyer + cam
+ *  - balkon     : kombi (en×boy) + balkon dolabı (en×boy, derinlik ≥60 ise +%30)
+ *  - mutfak     : tavan/duvar/boy/buz vs.
  *  - banyo      : alt/üst/boy modülleri (derinlik kullanılmaz)
  *  - vestiyer   : tek boy dolap + derinlik kuralı
  *  - ofis       : masa + arşiv dolabı
@@ -27,6 +29,14 @@ export const ROOM_DEFINITIONS = [
     description: "Gardırop, komidin, karyola ve şifonyer tek modülde",
     accent: "from-brand-500 to-brand-700",
     icon: Sofa
+  },
+  {
+    id: "balkon",
+    label: "Balkon",
+    short: "Balkon",
+    description: "Kombi dolabı ve balkon dolabı",
+    accent: "from-sky-500 to-sky-700",
+    icon: Home
   },
   {
     id: "mutfak",
@@ -101,7 +111,11 @@ export function createRoom(type, options = {}) {
           buzDolapEn: 0,
           buzYanakAdet: 0,
           kademeliMutfak: false,
-          tezgahM2: 0
+          tezgahM2: 0,
+          countertopCatalogId: "",
+          countertopLabel: "",
+          countertopMtul: 0,
+          countertopUnitPrice: 0
         }
       };
     case "banyo":
@@ -134,6 +148,15 @@ export function createRoom(type, options = {}) {
           arsivWidth: 0,
           arsivHeight: 0
         }
+      };
+    case "balkon":
+      return {
+        ...base,
+        kombiWidth: 0,
+        kombiHeight: 0,
+        balkonWidth: 0,
+        balkonHeight: 0,
+        balkonDepth: 0
       };
     default:
       return base;

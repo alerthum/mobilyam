@@ -6,9 +6,10 @@ import {
   pdfDocumentHeading,
   quoteWorkflow
 } from "../../constants/quoteWorkflow.js";
-import { formatCurrency, formatDate } from "../../utils/format.js";
+import { formatCurrency, formatDate, formatNumber } from "../../utils/format.js";
 import { getRoomDefinition } from "../../config/rooms.js";
-import mobarLogoUrl from "../../assets/mobar-logo.png";
+import primaryBrandLogoUrl from "../../assets/ushak-mobar-logo.png";
+import chamberSealLogoUrl from "../../assets/ushak-marango-esnaf-odasi-logo.png";
 
 /**
  * PDF görünümü: yalnızca yk-pdf-* sınıfları + data-yk-pdf stil bloğu (hex/rgb).
@@ -44,28 +45,43 @@ const PDF_EMBEDDED_CSS = `
   flex-direction: row;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 20px;
-  padding-bottom: 20px;
+  gap: 16px;
+  padding-bottom: 16px;
   border-bottom: 1px solid #e2e8f0;
 }
-.yk-pdf-brand { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
+.yk-pdf-brand { display: flex; align-items: flex-start; gap: 12px; min-width: 0; flex: 1; }
 .yk-pdf-logo {
-  height: 44px;
+  height: 40px;
   width: auto;
   display: block;
   object-fit: contain;
+  flex-shrink: 0;
+}
+.yk-pdf-header-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.yk-pdf-chamber-seal {
+  height: 46px;
+  width: 46px;
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 .yk-pdf-chamber-line {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #64748b;
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
 }
 .yk-pdf-doc-title-main {
   display: block;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -76,17 +92,17 @@ const PDF_EMBEDDED_CSS = `
 .yk-pdf--contract .yk-pdf-doc-title-main { color: #334155; }
 .yk-pdf-doc-title-sub {
   display: block;
-  margin-top: 8px;
-  font-size: 13px;
+  margin-top: 6px;
+  font-size: 11px;
   font-weight: 600;
   color: #64748b;
 }
 .yk-pdf-meta {
   flex-shrink: 0;
-  min-width: 132px;
-  padding: 10px 14px;
+  min-width: 124px;
+  padding: 8px 11px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f8fafc;
   text-align: left;
 }
@@ -99,41 +115,61 @@ const PDF_EMBEDDED_CSS = `
   margin: 0 0 4px 0;
 }
 .yk-pdf-meta-num {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   color: #0f172a;
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
-.yk-pdf-meta-date { font-size: 10px; color: #64748b; margin: 6px 0 0 0; }
-.yk-pdf-meta-status { font-size: 10px; font-weight: 600; color: #475569; margin: 8px 0 0 0; }
+.yk-pdf-meta-date { font-size: 9px; color: #64748b; margin: 5px 0 0 0; }
+.yk-pdf-meta-status { font-size: 9px; font-weight: 600; color: #475569; margin: 6px 0 0 0; }
 
-.yk-pdf-project { margin-top: 22px; }
+.yk-pdf-project { margin-top: 14px; }
 .yk-pdf-project-name {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   color: #0f172a;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 .yk-pdf-project-code {
   font-size: 11px;
   color: #64748b;
   margin: 0;
 }
-
-.yk-pdf-cards {
+.yk-pdf-project-code-row {
   display: flex;
   flex-direction: row;
-  gap: 16px;
-  margin-top: 18px;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 11px;
+  color: #64748b;
   flex-wrap: wrap;
+  margin: 0;
+}
+.yk-pdf-project-code-row > span:first-child {
+  min-width: 0;
+}
+.yk-pdf-project-code-num {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.yk-pdf-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
 }
 .yk-pdf-card {
-  flex: 1 1 230px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 14px 16px;
+  border-radius: 8px;
+  padding: 10px 12px;
   background: #ffffff;
+  min-width: 0;
 }
 .yk-pdf--contract .yk-pdf-card.yk-pdf-card--issuer {
   border-color: #cbd5e1;
@@ -144,35 +180,39 @@ const PDF_EMBEDDED_CSS = `
   background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 70%);
 }
 .yk-pdf-card-title {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #94a3b8;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
 }
-.yk-pdf-field { margin-bottom: 10px; }
-.yk-pdf-field:last-child { margin-bottom: 0; }
+.yk-pdf-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 10px;
+  align-items: start;
+}
+.yk-pdf-field { margin-bottom: 0; }
 .yk-pdf-field-l {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   color: #64748b;
-  margin: 0 0 2px 0;
+  margin: 0 0 1px 0;
 }
 .yk-pdf-field-v {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #1e293b;
   margin: 0;
+  line-height: 1.35;
+  word-break: break-word;
 }
-.yk-pdf-field-row {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.yk-pdf-section-title {
+.yk-pdf-field--sm .yk-pdf-field-l { font-size: 8px; }
+.yk-pdf-field--sm .yk-pdf-field-v { font-size: 9.5px; line-height: 1.3; }
+.yk-pdf-field--full { grid-column: 1 / -1; }
   margin: 26px 0 14px 0;
   font-size: 10px;
   font-weight: 800;
@@ -257,19 +297,149 @@ const PDF_EMBEDDED_CSS = `
   margin-top: 6px;
 }
 .yk-pdf-fin-disc { color: #b91c1c !important; }
+.yk-pdf-fin-netline {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+}
+.yk-pdf-fin-netline span:first-child { font-weight: 700; color: #334155; }
+.yk-pdf-fin-netline span:last-child { font-weight: 800; font-size: 12px; color: #0f172a; }
+/* Yalnızca genel toplam — kompakt vurgulu kart */
 .yk-pdf-net {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
   color: #ffffff;
 }
-.yk-pdf--quote .yk-pdf-net { background: #0369a1; }
-.yk-pdf--contract .yk-pdf-net { background: #1e293b; }
-.yk-pdf-net-l { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; }
-.yk-pdf-net-v { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.yk-pdf--quote .yk-pdf-net { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
+.yk-pdf--contract .yk-pdf-net { background: linear-gradient(135deg, #334155 0%, #1e293b 100%); }
+.yk-pdf-net-l { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; opacity: 0.92; }
+.yk-pdf-net-v { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.yk-pdf-fin-note { margin: 8px 0 0 0; font-size: 9px; color: #64748b; line-height: 1.4; }
+
+.yk-pdf-pay {
+  margin-top: 22px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  page-break-inside: avoid;
+}
+.yk-pdf--contract .yk-pdf-pay {
+  border-color: #94a3b8;
+  background: linear-gradient(180deg, #fafafa 0%, #ffffff 28%);
+}
+.yk-pdf-pay-title {
+  margin: 0 0 6px 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #475569;
+}
+.yk-pdf-pay-intro {
+  margin: 0 0 14px 0;
+  font-size: 9px;
+  color: #64748b;
+  line-height: 1.45;
+}
+.yk-pdf-pay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.yk-pdf-pay-table th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 2px solid #1e293b;
+  font-weight: 700;
+  color: #334155;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.yk-pdf-pay-table td {
+  padding: 12px 10px 14px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+.yk-pdf-pay-strong { font-weight: 700; color: #0f172a; white-space: nowrap; }
+.yk-pdf-pay-blank {
+  display: block;
+  min-height: 22px;
+  border-bottom: 1px dotted #64748b;
+  margin-top: 4px;
+}
+.yk-pdf-pay-cc-detail { padding-left: 0 !important; }
+.yk-pdf-pay-cc-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  align-items: end;
+  margin-top: 6px;
+  font-size: 9px;
+  color: #475569;
+}
+.yk-pdf-pay-cc-grid span:nth-child(odd) { font-weight: 600; white-space: nowrap; }
+.yk-pdf-pay-blank-short {
+  display: block;
+  min-height: 18px;
+  border-bottom: 1px dotted #64748b;
+}
+
+.yk-pdf-sign {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #cbd5e1;
+  display: flex;
+  flex-direction: row;
+  gap: 28px;
+  flex-wrap: wrap;
+  page-break-inside: avoid;
+}
+.yk-pdf-sign-col {
+  flex: 1 1 42%;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+}
+.yk-pdf-sign-title {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.yk-pdf-sign-sub {
+  margin: 8px 0 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  min-height: 18px;
+}
+.yk-pdf-sign-stamp {
+  margin-top: 36px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.yk-pdf-sign-line {
+  margin-top: 8px;
+  border-bottom: 1px solid #1e293b;
+  min-height: 1px;
+}
+.yk-pdf-sign-hint {
+  margin: 8px 0 0 0;
+  font-size: 8.5px;
+  color: #94a3b8;
+}
 
 .yk-pdf-legal {
   margin-top: 22px;
@@ -297,6 +467,14 @@ const PDF_EMBEDDED_CSS = `
 .yk-pdf-legal li { margin-bottom: 8px; }
 .yk-pdf-legal li:last-child { margin-bottom: 0; }
 
+.yk-pdf-tr-sub td {
+  background: #f8fafc;
+  font-size: 10px;
+  color: #475569;
+  border-top: none;
+}
+.yk-pdf-tr-sub .yk-pdf-money { color: #0f172a; font-weight: 700; }
+
 .yk-pdf-footer {
   margin-top: 22px;
   padding-top: 16px;
@@ -309,9 +487,9 @@ const PDF_EMBEDDED_CSS = `
 .yk-pdf-footer strong { color: #64748b; font-weight: 600; }
 `;
 
-function Field({ label, value }) {
+function Field({ label, value, fullWidth = false }) {
   return (
-    <div className="yk-pdf-field">
+    <div className={`yk-pdf-field${fullWidth ? " yk-pdf-field--full" : ""}`}>
       <p className="yk-pdf-field-l">{label}</p>
       <p className="yk-pdf-field-v">{value || "—"}</p>
     </div>
@@ -323,13 +501,14 @@ export default function ProposalPdfBody({
   quote,
   qualities,
   issuer,
-  chamberBannerName
+  chamberBannerName,
+  countertopCatalog = []
 }) {
   if (!quote || !project) return null;
   const wf = quoteWorkflow(quote);
   const docTitle = pdfDocumentHeading(quote);
   const isContract = isContractPdfTitle(wf);
-  const calc = calculateQuoteTotals(quote, qualities || []);
+  const calc = calculateQuoteTotals(quote, qualities || [], countertopCatalog || []);
   const qualById = new Map((qualities || []).map((q) => [q.id, q]));
 
   const skinClass = isContract ? "yk-pdf yk-pdf--contract" : "yk-pdf yk-pdf--quote";
@@ -337,8 +516,7 @@ export default function ProposalPdfBody({
     ? "yk-pdf-card yk-pdf-card--issuer"
     : "yk-pdf-card yk-pdf-card--issuer-accent";
 
-  const subtitle =
-    docTitle === "Sözleşme" ? "Ticari taahhüt dökümanı" : "Fiyatlandırma özeti";
+  const subtitle = docTitle === "Sözleşme" ? "Ticari taahhüt dökümanı" : null;
 
   return (
     <div
@@ -353,56 +531,74 @@ export default function ProposalPdfBody({
       <div className="yk-pdf-inner">
         <header className="yk-pdf-header">
           <div className="yk-pdf-brand">
-            <img className="yk-pdf-logo" src={mobarLogoUrl} alt="" />
+            <img className="yk-pdf-logo" src={primaryBrandLogoUrl} alt="" />
             <div>
               <p className="yk-pdf-chamber-line">{chamberBannerName || "Oda birliği"}</p>
               <h1 className="yk-pdf-doc-title">
                 <span className="yk-pdf-doc-title-main">{docTitle}</span>
-                <span className="yk-pdf-doc-title-sub">{subtitle}</span>
+                {subtitle ? (
+                  <span className="yk-pdf-doc-title-sub">{subtitle}</span>
+                ) : null}
               </h1>
             </div>
           </div>
-          <div className="yk-pdf-meta">
-            <p className="yk-pdf-meta-label">Belge</p>
-            <p className="yk-pdf-meta-num">#{quote.number}</p>
-            <p className="yk-pdf-meta-date">{formatDate(quote.date)}</p>
-            <p className="yk-pdf-meta-status">{WORKFLOW_LABELS[wf] || wf}</p>
+          <div className="yk-pdf-header-right">
+            <img className="yk-pdf-chamber-seal" src={chamberSealLogoUrl} alt="" />
+            {!isContract ? (
+              <div className="yk-pdf-meta">
+                <p className="yk-pdf-meta-label">Belge</p>
+                <p className="yk-pdf-meta-num">#{quote.number}</p>
+                <p className="yk-pdf-meta-date">{formatDate(quote.date)}</p>
+                <p className="yk-pdf-meta-status">{WORKFLOW_LABELS[wf] || wf}</p>
+              </div>
+            ) : null}
           </div>
         </header>
 
         <div className="yk-pdf-project">
           <h2 className="yk-pdf-project-name">{project.projectName || "Proje"}</h2>
-          {project.contractCode ? (
-            <p className="yk-pdf-project-code">Sözleşme / proje kodu: {project.contractCode}</p>
+          {isContract ? (
+            <div className="yk-pdf-project-code-row">
+              <span>
+                {project.contractCode
+                  ? `Sözleşme / proje kodu: ${project.contractCode}`
+                  : "Sözleşme / proje kodu: —"}
+              </span>
+              <span className="yk-pdf-project-code-num">
+                #{quote.number} · {formatDate(quote.contractedAt || quote.date)}
+              </span>
+            </div>
+          ) : project.contractCode ? (
+            <p className="yk-pdf-project-code">
+              Sözleşme / proje kodu: {project.contractCode}
+            </p>
           ) : null}
         </div>
 
         <div className="yk-pdf-cards">
-          <div className="yk-pdf-card">
-            <p className="yk-pdf-card-title">Müşteri</p>
-            <Field label="Unvan / Ad" value={project.customerName} />
-            <Field label="Telefon" value={project.customerPhone} />
-            <Field label="Adres" value={project.projectAddress} />
-          </div>
           <div className={`yk-pdf-card ${issuerCardClass}`}>
             <p className="yk-pdf-card-title">Sunan firma (üretici)</p>
-            <Field label="Firma" value={issuer?.company} />
-            <Field label="Yetkili" value={issuer?.fullName} />
-            <Field label="Telefon" value={issuer?.phone} />
-            <Field label="Adres" value={issuer?.addressLine} />
-            <div className="yk-pdf-field-row">
-              <div style={{ flex: "1 1 45%" }}>
-                <Field
-                  label="İl / ilçe"
-                  value={[issuer?.cityProvince, issuer?.district].filter(Boolean).join(" / ")}
-                />
-              </div>
-              <div style={{ flex: "1 1 45%" }}>
-                <Field
-                  label="Vergi dairesi / no"
-                  value={[issuer?.taxOffice, issuer?.taxNumber].filter(Boolean).join(" · ")}
-                />
-              </div>
+            <div className="yk-pdf-card-grid">
+              <Field label="Firma" value={issuer?.company} fullWidth />
+              <Field label="Yetkili" value={issuer?.fullName} />
+              <Field label="Telefon" value={issuer?.phone} />
+              <Field label="Adres" value={issuer?.addressLine} fullWidth />
+              <Field
+                label="İl / ilçe"
+                value={[issuer?.cityProvince, issuer?.district].filter(Boolean).join(" / ")}
+              />
+              <Field
+                label="Vergi dairesi / no"
+                value={[issuer?.taxOffice, issuer?.taxNumber].filter(Boolean).join(" · ")}
+              />
+            </div>
+          </div>
+          <div className="yk-pdf-card">
+            <p className="yk-pdf-card-title">Müşteri</p>
+            <div className="yk-pdf-card-grid">
+              <Field label="Unvan / Ad" value={project.customerName} fullWidth />
+              <Field label="Telefon" value={project.customerPhone} />
+              <Field label="Adres" value={project.projectAddress} fullWidth />
             </div>
           </div>
         </div>
@@ -430,19 +626,45 @@ export default function ProposalPdfBody({
                     const qn =
                       qualById.get(room.selectedQualityId)?.name || price.qualityName;
                     const sqm = price.officialSqmPrice;
+                    const isKitchen = room.type === "mutfak" || room.type === "kitchen";
+                    const showTezgah =
+                      isKitchen &&
+                      (price.countertopTotal > 0 ||
+                        price.countertopMtul > 0 ||
+                        Boolean(price.countertopName));
                     return (
-                      <tr key={room.id}>
-                        <td className="yk-pdf-td-strong">{room.name || def.label}</td>
-                        <td>{def.label}</td>
-                        <td>{qn}</td>
-                        <td className="yk-pdf-n">
-                          {price.panelEquivalentM2.toLocaleString("tr-TR", {
-                            maximumFractionDigits: 2
-                          })}
-                        </td>
-                        <td className="yk-pdf-n">{formatCurrency(sqm)}</td>
-                        <td className="yk-pdf-n yk-pdf-money">{formatCurrency(price.baseOfficial)}</td>
-                      </tr>
+                      <React.Fragment key={room.id}>
+                        <tr>
+                          <td className="yk-pdf-td-strong">{room.name || def.label}</td>
+                          <td>{def.label}</td>
+                          <td>{qn}</td>
+                          <td className="yk-pdf-n">
+                            {price.panelEquivalentM2.toLocaleString("tr-TR", {
+                              maximumFractionDigits: 2
+                            })}
+                          </td>
+                          <td className="yk-pdf-n">{formatCurrency(sqm)}</td>
+                          <td className="yk-pdf-n yk-pdf-money">{formatCurrency(price.baseOfficial)}</td>
+                        </tr>
+                        {showTezgah ? (
+                          <tr className="yk-pdf-tr-sub">
+                            <td className="yk-pdf-td-strong" style={{ paddingLeft: "14px" }}>
+                              {room.name || def.label}
+                            </td>
+                            <td>Tezgah</td>
+                            <td>{price.countertopName || "—"}</td>
+                            <td className="yk-pdf-n">
+                              {price.countertopMtul > 0
+                                ? formatNumber(price.countertopMtul, " mtül")
+                                : "—"}
+                            </td>
+                            <td className="yk-pdf-n">{formatCurrency(price.countertopUnitPrice)}</td>
+                            <td className="yk-pdf-n yk-pdf-money">
+                              {formatCurrency(price.countertopTotal)}
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
@@ -459,6 +681,12 @@ export default function ProposalPdfBody({
                 <span>m² × kalite toplamı</span>
                 <span>{formatCurrency(calc.totals.officialRoomTotal)}</span>
               </div>
+              {calc.totals.countertopExtrasTotal > 0 ? (
+                <div className="yk-pdf-fin-row">
+                  <span>Tezgah (mutfak, mtül × birim)</span>
+                  <span>{formatCurrency(calc.totals.countertopExtrasTotal)}</span>
+                </div>
+              ) : null}
               <div className="yk-pdf-fin-row">
                 <span>Cam</span>
                 <span>{formatCurrency(calc.totals.glassExtrasTotal)}</span>
@@ -481,13 +709,87 @@ export default function ProposalPdfBody({
                 <span>İndirimler</span>
                 <span>−{formatCurrency(calc.totals.totalDiscount)}</span>
               </div>
-              <div className="yk-pdf-net">
-                <span className="yk-pdf-net-l">NET TUTAR</span>
-                <span className="yk-pdf-net-v">{formatCurrency(calc.totals.dealerGrandTotal)}</span>
+              <div className="yk-pdf-fin-row yk-pdf-fin-netline">
+                <span>Net tutar (KDV hariç)</span>
+                <span>{formatCurrency(calc.totals.dealerGrandTotal)}</span>
               </div>
+              {calc.totals.vatIncluded ? (
+                <>
+                  <div className="yk-pdf-fin-row">
+                    <span>KDV ({calc.totals.vatRate}%)</span>
+                    <span>{formatCurrency(calc.totals.vatAmount)}</span>
+                  </div>
+                  <div className="yk-pdf-net">
+                    <span className="yk-pdf-net-l">GENEL TOPLAM</span>
+                    <span className="yk-pdf-net-v">{formatCurrency(calc.totals.grandTotalWithVat)}</span>
+                  </div>
+                  <p className="yk-pdf-fin-note">Net tutar + KDV tutarı = genel toplam.</p>
+                </>
+              ) : null}
             </div>
           </div>
         </section>
+
+        {isContract ? (
+          <section className="yk-pdf-pay">
+            <h4 className="yk-pdf-pay-title">Müşteri ödeme şekilleri</h4>
+            <p className="yk-pdf-pay-intro">
+              Ödeme planı el yazısı veya fatura ekinde netleştirilir. Boş satırlar müşteri ve firma
+              yetkilisi tarafından imza öncesi doldurulur.
+            </p>
+            <table className="yk-pdf-pay-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "26%" }}>Ödeme şekli</th>
+                  <th style={{ width: "22%" }}>Tutar</th>
+                  <th>Detay / not</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="yk-pdf-pay-strong">Peşin</td>
+                  <td>
+                    <span className="yk-pdf-pay-blank" aria-hidden />
+                  </td>
+                  <td>
+                    <span className="yk-pdf-pay-blank" aria-hidden />
+                  </td>
+                </tr>
+                <tr>
+                  <td className="yk-pdf-pay-strong">Havale / EFT</td>
+                  <td>
+                    <span className="yk-pdf-pay-blank" aria-hidden />
+                  </td>
+                  <td>
+                    <span className="yk-pdf-pay-blank" aria-hidden />
+                  </td>
+                </tr>
+                <tr>
+                  <td className="yk-pdf-pay-strong">Kredi kartı (taksit)</td>
+                  <td>
+                    <span className="yk-pdf-pay-blank" aria-hidden />
+                  </td>
+                  <td className="yk-pdf-pay-cc-detail">
+                    <div className="yk-pdf-pay-cc-grid">
+                      <span>Taksit sayısı</span>
+                      <span className="yk-pdf-pay-blank-short" aria-hidden />
+                      <span>İlk taksit tarihi</span>
+                      <span className="yk-pdf-pay-blank-short" aria-hidden />
+                      <span>Son taksit tarihi</span>
+                      <span className="yk-pdf-pay-blank-short" aria-hidden />
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="yk-pdf-pay-strong">Diğer</td>
+                  <td colSpan={2}>
+                    <span className="yk-pdf-pay-blank" aria-hidden />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        ) : null}
 
         {isContract ? (
           <section className="yk-pdf-legal">
@@ -499,8 +801,8 @@ export default function ProposalPdfBody({
                 taraflarca imzalanan yazılı sözleşme ve teknik şartnamede düzenlenir.
               </li>
               <li>
-                Burada gösterilen tutarlar bilgilendirme amaçlıdır; KDV ve yasal kesintiler yürürlükteki
-                mevzuat ve fatura düzenine tabidir.
+                Burada gösterilen KDV satırları bilgilendirme amaçlıdır; kesin vergi matrahı ve beyan
+                yükümlülükleri yürürlükteki mevzuat ve düzenlenen belgelere tabidir.
               </li>
               <li>
                 Montaj, nakliye, ölçüm ve sözleşme dışı ek işler ayrıca yazılı olarak fiyatlandırılır;
@@ -518,11 +820,30 @@ export default function ProposalPdfBody({
           </section>
         ) : null}
 
+        {isContract ? (
+          <section className="yk-pdf-sign">
+            <div className="yk-pdf-sign-col">
+              <p className="yk-pdf-sign-title">Firma</p>
+              <p className="yk-pdf-sign-sub">{issuer?.company || "—"}</p>
+              <div className="yk-pdf-sign-stamp">Kaşe ve imza</div>
+              <div className="yk-pdf-sign-line" aria-hidden />
+              <p className="yk-pdf-sign-hint">Yetkili adı soyadı · görevi</p>
+            </div>
+            <div className="yk-pdf-sign-col">
+              <p className="yk-pdf-sign-title">Müşteri</p>
+              <p className="yk-pdf-sign-sub">{project.customerName || "Ad soyad / ünvan"}</p>
+              <div className="yk-pdf-sign-stamp">İmza</div>
+              <div className="yk-pdf-sign-line" aria-hidden />
+              <p className="yk-pdf-sign-hint">Tarih · … / … / …</p>
+            </div>
+          </section>
+        ) : null}
+
         <footer className="yk-pdf-footer">
           <p>
             {isContract ? (
               <>
-                <strong>Teklif / özet belgesi.</strong> İmza veya onay öncesi şartları okuyunuz.
+                <strong>Sözleşme özeti.</strong> İmza veya onay öncesi şartları okuyunuz.
                 Kesin hükümler imzalanan sözleşmede yer alır.
               </>
             ) : (

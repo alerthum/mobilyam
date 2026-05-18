@@ -1,8 +1,8 @@
 import React from "react";
 import { formatCurrency } from "../../utils/format.js";
 
-/** Kalite + (isteğe bağlı) ek hizmet kataloğu — salt görüntü PDF. */
-export default function CatalogPdfBody({ qualities, services = [] }) {
+/** Kalite + ek hizmet + tezgah kataloğu — salt görüntü PDF. */
+export default function CatalogPdfBody({ qualities, services = [], countertops = [] }) {
   return (
     <div
       className="text-ink-900 text-[13px] p-10 max-w-[210mm] mx-auto bg-white"
@@ -56,6 +56,38 @@ export default function CatalogPdfBody({ qualities, services = [] }) {
                 >
                   <td className="py-2.5 px-3 border-b border-ink-100 font-semibold">{s.name}</td>
                   <td className="py-2.5 px-3 border-b border-ink-100 text-ink-600">{s.unit}</td>
+                  <td className="py-2.5 px-3 border-b border-ink-100 text-right font-bold tabular-nums">
+                    {formatCurrency(s.price)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {(countertops || []).length > 0 && (
+        <>
+          <header className="border-b-2 border-ink-900 pb-4 mb-6">
+            <h2 className="text-xl font-black text-ink-900">Tezgah özellikleri</h2>
+            <p className="text-xs text-ink-500 mt-1">Mutfak teklif satırı — varsayılan mtül birim fiyatları.</p>
+          </header>
+          <table className="w-full text-[12px] border-collapse mb-6">
+            <thead>
+              <tr className="bg-ink-900 text-white text-left">
+                <th className="py-2.5 px-3 font-semibold rounded-tl-lg">Tezgah tipi</th>
+                <th className="py-2.5 px-3 font-semibold">Birim</th>
+                <th className="py-2.5 px-3 font-semibold text-right rounded-tr-lg">Varsayılan fiyat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {countertops.map((s, i) => (
+                <tr
+                  key={s.id}
+                  className={i % 2 === 0 ? "bg-white" : "bg-surface-50"}
+                >
+                  <td className="py-2.5 px-3 border-b border-ink-100 font-semibold">{s.name}</td>
+                  <td className="py-2.5 px-3 border-b border-ink-100 text-ink-600">{s.unit || "mtül"}</td>
                   <td className="py-2.5 px-3 border-b border-ink-100 text-right font-bold tabular-nums">
                     {formatCurrency(s.price)}
                   </td>

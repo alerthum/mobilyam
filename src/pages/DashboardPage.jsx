@@ -32,12 +32,12 @@ export default function DashboardPage() {
     let totalRevenue = 0;
     let totalArea = 0;
     quotes.forEach((q) => {
-      const calc = calculateQuoteTotals(q, remote?.qualities || []);
-      totalRevenue += calc.totals.dealerGrandTotal;
+      const calc = calculateQuoteTotals(q, remote?.qualities || [], remote?.countertopCatalog || []);
+      totalRevenue += calc.totals.grandTotalWithVat;
       totalArea += calc.rooms.reduce((s, r) => s + r.price.panelEquivalentM2, 0);
     });
     return { totalProjects: quotes.length, totalQuotes: quotes.length, totalRevenue, totalArea };
-  }, [remote]);
+  }, [remote?.quotes, remote?.qualities, remote?.countertopCatalog]);
 
   async function publishBroadcast() {
     if (!title.trim()) {

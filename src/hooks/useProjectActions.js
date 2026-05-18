@@ -4,6 +4,8 @@ import { todayIso } from "../utils/format.js";
 /**
  * Teklif manipülasyon yardımcıları (CRUD).
  *
+ * Yeni tekliflerde `vatIncluded` varsayılan açık, `vatRate` %20.
+ *
  * Kayıt politikası:
  *  - Yapısal işlemler (create/add/delete/replace) `commit` ile
  *    hem local state'i değiştirir hem hemen sunucuya yazar.
@@ -45,6 +47,8 @@ export function useProjectActions() {
         contractServiceLines: [],
         producerDiscountRate: 0,
         generalDiscountAmount: 0,
+        vatIncluded: true,
+        vatRate: 20,
         notes: "",
         workflowStatus: "preparing",
         number: nextNumber,
