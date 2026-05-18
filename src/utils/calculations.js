@@ -80,12 +80,91 @@ export function calcVestiyer(basic) {
  *  - Cam çeşitleri: kullanıcı manuel ad + fiyat girer; doğrudan toplama eklenir.
  *
  * Yatak Odası ARTIK Gardırop modülünün İÇİNDEDİR:
- *  - Komidin: adet, çekmece sayısı, en, boy   (alan = en × boy × adet)
+ *  - Komidin: 2 çekmece → 1 m² × adet; diğer → en × boy × adet
  *  - Karyola: en, boy                          (alan = en × boy × 1.3)
- *  - Şifonyer: en, boy, derinlik, adet, çekmece
- *      derinlik > 45 → ×1.3
- *      alan = en × boy × adet × derinlikFaktörü
+ *  - Şifonyer: 4 çekmece → 2 m² × adet; diğer → en × boy × adet × derinlik (>45 → ×1.3)
  */
+
+/** Komidin panel eşdeğeri (tek satır). */
+function komidinPanelM2(k) {
+  const adet = Math.max(0, num(k.adet));
+  if (adet <= 0) return { m2: 0, formula: "", meta: "" };
+  const cekmece = num(k.cekmece);
+  if (cekmece === 2) {
+    return {
+      m2: adet * 1,
+      formula: "2 çekmece: 1 m² × adet",
+      meta: "Sabit panel (2 çekmece)"
+    };
+  }
+  const cw = num(k.width);
+  const ch = num(k.height);
+  if (cw > 0 && ch > 0) {
+    return {
+      m2: cmCmToM2(cw, ch) * adet,
+      formula: "en × boy × adet",
+      meta: cekmece > 0 ? `Çekmece: ${cekmece} adet` : undefined
+    };
+  }
+  return { m2: 0, formula: "", meta: "" };
+}
+
+/** Şifonyer panel eşdeğeri (tek satır). */
+function sifonyerPanelM2(s) {
+  const adet = Math.max(0, num(s.adet));
+  if (adet <= 0) return { m2: 0, formula: "", meta: "" };
+  const cekmece = num(s.cekmece);
+  if (cekmece === 4) {
+    return {
+      m2: adet * 2,
+      formula: "4 çekmece: 2 m² × adet",
+      meta: "Sabit panel (4 çekmece)"
+    };
+  }
+  const cw = num(s.width);
+  const ch = num(s.height);
+  const cd = num(s.depth);
+  if (cw > 0 && ch > 0) {
+    const depthFactor = cd > 45 ? 1.3 : 1;
+    const formula =
+      cd > 45 ? "en × boy × adet × 1.30 (derinlik > 45)" : "en × boy × adet";
+    return {
+      m2: cmCmToM2(cw, ch) * adet * depthFactor,
+      formula,
+      meta: `Çekmece: ${cekmece} adet · Derinlik: ${cd} cm`
+    };
+  }
+  return { m2: 0, formula: "", meta: "" };
+}
+
+/** Karyola panel eşdeğeri (tek satır). */
+function karyolaPanelM2(k) {
+  const cw = num(k.width);
+  const ch = num(k.height);
+  if (cw > 0 && ch > 0) {
+    return {
+      m2: cmCmToM2(cw, ch) * 1.3,
+      formula: "en × boy × 1.30"
+    };
+  }
+  return { m2: 0, formula: "" };
+}
+
+export function previewKomidinM2(k) {
+  const { m2, formula } = komidinPanelM2(k);
+  return { m2: round(m2, 3), formula: formula || "—" };
+}
+
+export function previewSifonyerM2(s) {
+  const { m2, formula } = sifonyerPanelM2(s);
+  return { m2: round(m2, 3), formula: formula || "—" };
+}
+
+export function previewKaryolaM2(k) {
+  const { m2, formula } = karyolaPanelM2(k);
+  return { m2: round(m2, 3), formula: formula || "—" };
+}
+
 export function calcGardirop(room) {
   const w = num(room.width);
   const h = num(room.height);
@@ -113,17 +192,15 @@ export function calcGardirop(room) {
   const komidinList = Array.isArray(room.komidinler) ? room.komidinler : [];
   let komidinM2 = 0;
   komidinList.forEach((k, idx) => {
-    const adet = Math.max(0, num(k.adet));
-    const cw = num(k.width);
-    const ch = num(k.height);
-    if (adet > 0 && cw > 0 && ch > 0) {
-      const m2 = cmCmToM2(cw, ch) * adet;
+    const { m2, formula, meta } = komidinPanelM2(k);
+    if (m2 > 0) {
+      const adet = Math.max(0, num(k.adet));
       komidinM2 += m2;
       breakdown.push({
         label: `Komidin #${idx + 1} × ${adet}`,
         m2: round(m2, 3),
-        formula: "en × boy × adet",
-        meta: `Çekmece: ${num(k.cekmece)} adet`
+        formula,
+        ...(meta ? { meta } : {})
       });
     }
   });
@@ -132,15 +209,13 @@ export function calcGardirop(room) {
   const karyolaList = Array.isArray(room.karyolalar) ? room.karyolalar : [];
   let karyolaM2 = 0;
   karyolaList.forEach((k, idx) => {
-    const cw = num(k.width);
-    const ch = num(k.height);
-    if (cw > 0 && ch > 0) {
-      const m2 = cmCmToM2(cw, ch) * 1.3;
+    const { m2, formula } = karyolaPanelM2(k);
+    if (m2 > 0) {
       karyolaM2 += m2;
       breakdown.push({
         label: `Karyola #${idx + 1}`,
         m2: round(m2, 3),
-        formula: "en × boy × 1.30"
+        formula
       });
     }
   });
@@ -149,20 +224,15 @@ export function calcGardirop(room) {
   const sifonyerList = Array.isArray(room.sifonyerler) ? room.sifonyerler : [];
   let sifonyerM2 = 0;
   sifonyerList.forEach((s, idx) => {
-    const adet = Math.max(0, num(s.adet));
-    const cw = num(s.width);
-    const ch = num(s.height);
-    const cd = num(s.depth);
-    if (adet > 0 && cw > 0 && ch > 0) {
-      const depthFactor = cd > 45 ? 1.3 : 1;
-      const m2 = cmCmToM2(cw, ch) * adet * depthFactor;
+    const { m2, formula, meta } = sifonyerPanelM2(s);
+    if (m2 > 0) {
+      const adet = Math.max(0, num(s.adet));
       sifonyerM2 += m2;
       breakdown.push({
         label: `Şifonyer #${idx + 1} × ${adet}`,
         m2: round(m2, 3),
-        formula:
-          cd > 45 ? "en × boy × adet × 1.30 (derinlik > 45)" : "en × boy × adet",
-        meta: `Çekmece: ${num(s.cekmece)} adet · Derinlik: ${cd} cm`
+        formula,
+        ...(meta ? { meta } : {})
       });
     }
   });
@@ -260,7 +330,7 @@ function mutfakComponentCm2(basic) {
   const altDolapRaw = C6 - C7 - C8 - C9;
   const altRaw = altDolapRaw * 100 * 1.3;
   const buzRaw = (C5 - 195) * C9 * 1.3;
-  const yanakRaw = C5 * 30 * C10;
+  const yanakRaw = C5 * 70 * C10;
   const boyRaw = C5 * C8 * 1.3;
 
   return {
@@ -324,7 +394,7 @@ export function getMutfakM2Breakdown(basic) {
       label: "Buz dolap yanak",
       cm2: r.buzYanakCm2,
       m2: r.buzYanakCm2 / 10000,
-      detail: `${fmt(r.C5)} × 30 × ${fmt(r.C10)} = ${fmt(r.buzYanakCm2)} cm²`
+      detail: `${fmt(r.C5)} × 70 × ${fmt(r.C10)} = ${fmt(r.buzYanakCm2)} cm²`
     },
     {
       key: "boy",
@@ -355,7 +425,7 @@ export function getMutfakM2Breakdown(basic) {
  *  - Alt dolap   = altRaw × 100 × 1.3
  *  - Tezgah mt   = altRaw / 100  (metre cinsinden uzunluk; m² toplamına girmez)
  *  - Buz dolap   = (tavan-195) × buzDolap × 1.3
- *  - Buz yanak   = tavan × 30 × yanakAdet
+ *  - Buz yanak   = tavan × 70 × yanakAdet (cm derinlik sabiti)
  *  - Boy dolap   = tavan × boyDolapEn × 1.3
  */
 export function calcMutfak(basic) {
@@ -391,7 +461,7 @@ export function calcMutfak(basic) {
       {
         label: "Buz yanak",
         m2: round(r.buzYanakCm2 / 10000, 3),
-        formula: "tavan × 30 × adet"
+        formula: "tavan × 70 × adet"
       },
       {
         label: "Boy dolap",

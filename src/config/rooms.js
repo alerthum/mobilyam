@@ -167,7 +167,7 @@ export function createKomidin() {
   return {
     id: `KMD-${Math.random().toString(16).slice(2, 8)}`,
     adet: 0,
-    cekmece: 0,
+    cekmece: 2,
     width: 0,
     height: 0
   };
@@ -185,7 +185,7 @@ export function createSifonyer() {
   return {
     id: `SFY-${Math.random().toString(16).slice(2, 8)}`,
     adet: 0,
-    cekmece: 0,
+    cekmece: 4,
     width: 0,
     height: 0,
     depth: 0

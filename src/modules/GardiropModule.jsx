@@ -14,6 +14,11 @@ import {
   createSifonyer,
   createCam
 } from "../config/rooms.js";
+import {
+  previewKomidinM2,
+  previewKaryolaM2,
+  previewSifonyerM2
+} from "../utils/calculations.js";
 import { useConfirm } from "../context/ModalContext.jsx";
 
 /**
@@ -238,7 +243,21 @@ function ItemRow({ index, label, onRemove, children }) {
   );
 }
 
+function PanelM2Hint({ m2, formula }) {
+  if (!m2 || m2 <= 0) return null;
+  return (
+    <p className="mt-2.5 text-[11px] text-ink-500 leading-snug">
+      <span className="font-semibold text-brand-600 tabular-nums">
+        ≈ {m2.toLocaleString("tr-TR", { maximumFractionDigits: 3 })} m²
+      </span>
+      {" panel · "}
+      <span className="text-ink-600">{formula}</span>
+    </p>
+  );
+}
+
 function KomidinForm({ index, value, onChange, onRemove }) {
+  const preview = previewKomidinM2(value);
   return (
     <ItemRow index={index} label="Komidin" onRemove={onRemove}>
       <div className="grid sm:grid-cols-4 gap-3">
@@ -250,7 +269,7 @@ function KomidinForm({ index, value, onChange, onRemove }) {
             suffix="adet"
           />
         </Field>
-        <Field label="Çekmece">
+        <Field label="Çekmece" hint="2 çekmece → 1 m² × adet (sabit)">
           <DecimalInput
             integer
             value={value.cekmece}
@@ -258,7 +277,7 @@ function KomidinForm({ index, value, onChange, onRemove }) {
             suffix="adet"
           />
         </Field>
-        <Field label="En">
+        <Field label="En" hint="Sabit kural dışında: en × boy">
           <DecimalInput
             value={value.width}
             onValueChange={(v) => onChange({ ...value, width: v })}
@@ -273,11 +292,13 @@ function KomidinForm({ index, value, onChange, onRemove }) {
           />
         </Field>
       </div>
+      <PanelM2Hint m2={preview.m2} formula={preview.formula} />
     </ItemRow>
   );
 }
 
 function KaryolaForm({ index, value, onChange, onRemove }) {
+  const preview = previewKaryolaM2(value);
   return (
     <ItemRow index={index} label="Karyola" onRemove={onRemove}>
       <div className="grid sm:grid-cols-2 gap-3">
@@ -296,12 +317,14 @@ function KaryolaForm({ index, value, onChange, onRemove }) {
           />
         </Field>
       </div>
+      <PanelM2Hint m2={preview.m2} formula={preview.formula} />
     </ItemRow>
   );
 }
 
 function SifonyerForm({ index, value, onChange, onRemove }) {
   const factorActive = Number(value.depth || 0) > 45;
+  const preview = previewSifonyerM2(value);
   return (
     <ItemRow index={index} label="Şifonyer" onRemove={onRemove}>
       <div className="grid sm:grid-cols-5 gap-3">
@@ -313,7 +336,7 @@ function SifonyerForm({ index, value, onChange, onRemove }) {
             suffix="adet"
           />
         </Field>
-        <Field label="Çekmece">
+        <Field label="Çekmece" hint="4 çekmece → 2 m² × adet (sabit)">
           <DecimalInput
             integer
             value={value.cekmece}
@@ -346,6 +369,7 @@ function SifonyerForm({ index, value, onChange, onRemove }) {
           />
         </Field>
       </div>
+      <PanelM2Hint m2={preview.m2} formula={preview.formula} />
     </ItemRow>
   );
 }

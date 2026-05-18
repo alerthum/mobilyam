@@ -154,26 +154,25 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
     }
   }
 
-  async function persistVatPatch(mutator) {
-    const result = await commit((d) => {
-      const q = d.quotes?.find((x) => x.id === quoteId);
-      if (!q) return;
-      mutator(q);
+  /** KDV oranı: yazarken yalnızca yerel state (anında önizleme); sunucuya blur'da gider. */
+  function patchVatRateLocal(nextRate) {
+    const clamped = Math.min(100, Math.max(0, Number(nextRate) || 0));
+    actions.updateQuote(projectId, quoteId, (q) => {
+      q.vatRate = clamped;
     });
+  }
+
+  async function persistVatSettings() {
+    const result = await saveNow();
     if (!result?.ok) toast.error("KDV ayarı kaydedilemedi");
   }
 
-  async function setQuoteVatIncluded(next) {
-    await persistVatPatch((q) => {
+  function setQuoteVatIncluded(next) {
+    actions.updateQuote(projectId, quoteId, (q) => {
       q.vatIncluded = next;
       if (next && (q.vatRate == null || Number.isNaN(Number(q.vatRate)))) q.vatRate = 20;
     });
-  }
-
-  async function setQuoteVatRate(nextRate) {
-    await persistVatPatch((q) => {
-      q.vatRate = nextRate;
-    });
+    void persistVatSettings();
   }
 
   function syncDiscountFromRate(nextRate) {
@@ -811,26 +810,31 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
           />
           {sectionsOpen.flow && (
           <div className="mt-3 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-              <label className="inline-flex items-center gap-2.5 rounded-xl border border-ink-200 bg-surface-50 px-3 py-2.5 cursor-pointer select-none">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <label className="inline-flex items-center gap-2.5 shrink-0 h-11 rounded-xl border border-ink-200 bg-surface-50 px-3 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
                   checked={quote.vatIncluded === true}
-                  onChange={(e) => void setQuoteVatIncluded(e.target.checked)}
-                  disabled={saving}
+                  onChange={(e) => setQuoteVatIncluded(e.target.checked)}
                 />
                 <span className="text-sm font-semibold text-ink-900">+ KDV</span>
               </label>
               {quote.vatIncluded === true ? (
-                <div className="flex-1 min-w-[200px] max-w-xs">
-                  <Field label="KDV oranı (%)" hint="İndirim sonrası net tutar üzerinden hesaplanır">
+                <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-[200px] max-w-md">
+                  <span className="text-[13px] font-bold text-ink-800 shrink-0">
+                    KDV oranı (%)
+                  </span>
+                  <div className="w-[100px] shrink-0">
                     <PercentInput
                       value={quote.vatRate ?? 20}
-                      onValueChange={(v) => void setQuoteVatRate(v)}
-                      disabled={saving}
+                      onValueChange={patchVatRateLocal}
+                      onBlur={() => void persistVatSettings()}
                     />
-                  </Field>
+                  </div>
+                  <span className="text-xs text-ink-500 w-full sm:w-auto sm:flex-1 sm:min-w-0">
+                    İndirim sonrası net tutar üzerinden; alandan çıkınca kaydedilir
+                  </span>
                 </div>
               ) : null}
             </div>

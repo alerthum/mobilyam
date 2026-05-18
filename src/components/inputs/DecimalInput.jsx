@@ -24,6 +24,7 @@ export default function DecimalInput({
   selectOnFocus = true,
   className,
   onFocus: onFocusProp,
+  onBlur: onBlurProp,
   ...rest
 }) {
   const [text, setText] = useState(() => valueToText(value, integer));
@@ -63,7 +64,7 @@ export default function DecimalInput({
     onFocusProp?.(e);
   }
 
-  function handleBlur() {
+  function handleBlur(e) {
     const parsed = parseDecimal(text);
     const display = integer
       ? String(Math.round(parsed))
@@ -71,6 +72,7 @@ export default function DecimalInput({
     setText(display);
     onValueChange?.(integer ? Math.round(parsed) : parsed);
     focusedRef.current = false;
+    onBlurProp?.(e);
   }
 
   return (
