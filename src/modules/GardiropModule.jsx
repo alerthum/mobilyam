@@ -257,39 +257,25 @@ function PanelM2Hint({ m2, formula }) {
 }
 
 function KomidinForm({ index, value, onChange, onRemove }) {
-  const preview = previewKomidinM2(value);
+  const row = { ...value, cekmece: 2, width: 0, height: 0 };
+  const preview = previewKomidinM2(row);
   return (
     <ItemRow index={index} label="Komidin" onRemove={onRemove}>
-      <div className="grid sm:grid-cols-4 gap-3">
+      <div className="grid sm:grid-cols-2 gap-3 max-w-lg">
         <Field label="Adet">
           <DecimalInput
             integer
             value={value.adet}
-            onValueChange={(v) => onChange({ ...value, adet: v })}
+            onValueChange={(v) =>
+              onChange({ ...value, adet: v, cekmece: 2, width: 0, height: 0 })
+            }
             suffix="adet"
           />
         </Field>
-        <Field label="Çekmece" hint="2 çekmece → 1 m² × adet (sabit)">
-          <DecimalInput
-            integer
-            value={value.cekmece}
-            onValueChange={(v) => onChange({ ...value, cekmece: v })}
-            suffix="adet"
-          />
-        </Field>
-        <Field label="En" hint="Sabit kural dışında: en × boy">
-          <DecimalInput
-            value={value.width}
-            onValueChange={(v) => onChange({ ...value, width: v })}
-            suffix="cm"
-          />
-        </Field>
-        <Field label="Boy">
-          <DecimalInput
-            value={value.height}
-            onValueChange={(v) => onChange({ ...value, height: v })}
-            suffix="cm"
-          />
+        <Field label="Tip (sabit)">
+          <div className="yk-input-shell-flat w-full py-2.5 px-3 text-sm font-semibold text-ink-700">
+            2 çekmece · 1 m² / adet
+          </div>
         </Field>
       </div>
       <PanelM2Hint m2={preview.m2} formula={preview.formula} />
@@ -323,50 +309,25 @@ function KaryolaForm({ index, value, onChange, onRemove }) {
 }
 
 function SifonyerForm({ index, value, onChange, onRemove }) {
-  const factorActive = Number(value.depth || 0) > 45;
-  const preview = previewSifonyerM2(value);
+  const row = { ...value, cekmece: 4, width: 0, height: 0, depth: 0 };
+  const preview = previewSifonyerM2(row);
   return (
     <ItemRow index={index} label="Şifonyer" onRemove={onRemove}>
-      <div className="grid sm:grid-cols-5 gap-3">
+      <div className="grid sm:grid-cols-2 gap-3 max-w-lg">
         <Field label="Adet">
           <DecimalInput
             integer
             value={value.adet}
-            onValueChange={(v) => onChange({ ...value, adet: v })}
+            onValueChange={(v) =>
+              onChange({ ...value, adet: v, cekmece: 4, width: 0, height: 0, depth: 0 })
+            }
             suffix="adet"
           />
         </Field>
-        <Field label="Çekmece" hint="4 çekmece → 2 m² × adet (sabit)">
-          <DecimalInput
-            integer
-            value={value.cekmece}
-            onValueChange={(v) => onChange({ ...value, cekmece: v })}
-            suffix="adet"
-          />
-        </Field>
-        <Field label="En">
-          <DecimalInput
-            value={value.width}
-            onValueChange={(v) => onChange({ ...value, width: v })}
-            suffix="cm"
-          />
-        </Field>
-        <Field label="Boy">
-          <DecimalInput
-            value={value.height}
-            onValueChange={(v) => onChange({ ...value, height: v })}
-            suffix="cm"
-          />
-        </Field>
-        <Field
-          label="Derinlik"
-          hint={factorActive ? "%30 ilave aktif" : "≤ 45 cm: ilavesiz"}
-        >
-          <DecimalInput
-            value={value.depth}
-            onValueChange={(v) => onChange({ ...value, depth: v })}
-            suffix="cm"
-          />
+        <Field label="Tip (sabit)">
+          <div className="yk-input-shell-flat w-full py-2.5 px-3 text-sm font-semibold text-ink-700">
+            4 çekmece · 2 m² / adet
+          </div>
         </Field>
       </div>
       <PanelM2Hint m2={preview.m2} formula={preview.formula} />

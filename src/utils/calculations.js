@@ -80,61 +80,31 @@ export function calcVestiyer(basic) {
  *  - Cam çeşitleri: kullanıcı manuel ad + fiyat girer; doğrudan toplama eklenir.
  *
  * Yatak Odası ARTIK Gardırop modülünün İÇİNDEDİR:
- *  - Komidin: 2 çekmece → 1 m² × adet; diğer → en × boy × adet
+ *  - Komidin: sabit 2 çekmece → 1 m² × adet
  *  - Karyola: en, boy                          (alan = en × boy × 1.3)
- *  - Şifonyer: 4 çekmece → 2 m² × adet; diğer → en × boy × adet × derinlik (>45 → ×1.3)
+ *  - Şifonyer: sabit 4 çekmece → 2 m² × adet
  */
 
-/** Komidin panel eşdeğeri (tek satır). */
+/** Komidin: yalnızca 2 çekmece sabit tip — 1 m² × adet (ölçü yok). */
 function komidinPanelM2(k) {
   const adet = Math.max(0, num(k.adet));
   if (adet <= 0) return { m2: 0, formula: "", meta: "" };
-  const cekmece = num(k.cekmece);
-  if (cekmece === 2) {
-    return {
-      m2: adet * 1,
-      formula: "2 çekmece: 1 m² × adet",
-      meta: "Sabit panel (2 çekmece)"
-    };
-  }
-  const cw = num(k.width);
-  const ch = num(k.height);
-  if (cw > 0 && ch > 0) {
-    return {
-      m2: cmCmToM2(cw, ch) * adet,
-      formula: "en × boy × adet",
-      meta: cekmece > 0 ? `Çekmece: ${cekmece} adet` : undefined
-    };
-  }
-  return { m2: 0, formula: "", meta: "" };
+  return {
+    m2: adet * 1,
+    formula: "2 çekmece: 1 m² × adet",
+    meta: "Sabit panel (2 çekmece)"
+  };
 }
 
-/** Şifonyer panel eşdeğeri (tek satır). */
+/** Şifonyer: yalnızca 4 çekmece sabit tip — 2 m² × adet (ölçü yok). */
 function sifonyerPanelM2(s) {
   const adet = Math.max(0, num(s.adet));
   if (adet <= 0) return { m2: 0, formula: "", meta: "" };
-  const cekmece = num(s.cekmece);
-  if (cekmece === 4) {
-    return {
-      m2: adet * 2,
-      formula: "4 çekmece: 2 m² × adet",
-      meta: "Sabit panel (4 çekmece)"
-    };
-  }
-  const cw = num(s.width);
-  const ch = num(s.height);
-  const cd = num(s.depth);
-  if (cw > 0 && ch > 0) {
-    const depthFactor = cd > 45 ? 1.3 : 1;
-    const formula =
-      cd > 45 ? "en × boy × adet × 1.30 (derinlik > 45)" : "en × boy × adet";
-    return {
-      m2: cmCmToM2(cw, ch) * adet * depthFactor,
-      formula,
-      meta: `Çekmece: ${cekmece} adet · Derinlik: ${cd} cm`
-    };
-  }
-  return { m2: 0, formula: "", meta: "" };
+  return {
+    m2: adet * 2,
+    formula: "4 çekmece: 2 m² × adet",
+    meta: "Sabit panel (4 çekmece)"
+  };
 }
 
 /** Karyola panel eşdeğeri (tek satır). */

@@ -709,65 +709,8 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               />
             </Field>
           </div>
-          <div className="mt-4 grid gap-3 text-sm grid-cols-1 sm:grid-cols-2 xl:grid-cols-8">
-            <SummaryLine
-              label="Resmi oda (m²×kalite)"
-              hint="Yalnızca ölçü × seçilen kalite birim fiyatı (tezgah, cam ve ek hırdavat dahil değildir)."
-              value={formatCurrency(calc.totals.officialRoomTotal)}
-            />
-            <SummaryLine
-              label="Tezgah (mutfak)"
-              hint="Mutfak satırlarında girilen mtül × birim fiyat"
-              value={formatCurrency(calc.totals.countertopExtrasTotal)}
-            />
-            <SummaryLine
-              label="Ek kalemler toplamı"
-              hint={`Cam: ${formatCurrency(calc.totals.glassExtrasTotal)} · Hırdavat: ${formatCurrency(calc.totals.hardwareExtrasTotal)} · Hizmet: ${formatCurrency(calc.totals.servicesTotal)}`}
-              value={formatCurrency(
-                calc.totals.glassExtrasTotal +
-                  calc.totals.hardwareExtrasTotal +
-                  calc.totals.servicesTotal
-              )}
-              tone="warning"
-            />
-            <SummaryLine
-              label={`Brüt (indirimsiz)`}
-              hint="m²×kalite + tezgah + cam + ek hırdavat + ek hizmetler"
-              value={formatCurrency(calc.totals.officialGrandTotal)}
-              tone="ink"
-            />
-            <SummaryLine
-              label="Toplam indirim"
-              value={`-${formatCurrency(calc.totals.totalDiscount)}`}
-              tone="danger"
-            />
-            <SummaryLine
-              label="Net teklif tutarı"
-              hint={
-                calc.totals.vatIncluded
-                  ? "İndirim sonrası net tutar (KDV hariç)"
-                  : undefined
-              }
-              value={formatCurrency(calc.totals.dealerGrandTotal)}
-              tone="brand"
-              big
-            />
-            {calc.totals.vatIncluded ? (
-              <>
-                <SummaryLine
-                  label={`KDV (${calc.totals.vatRate}%)`}
-                  hint="Net tutar üzerinden"
-                  value={formatCurrency(calc.totals.vatAmount)}
-                  tone="warning"
-                />
-                <SummaryLine
-                  label="Genel toplam (KDV dahil)"
-                  value={formatCurrency(calc.totals.grandTotalWithVat)}
-                  tone="brand"
-                  big
-                />
-              </>
-            ) : null}
+          <div className="mt-4">
+            <QuoteTotalsBreakdown totals={calc.totals} />
           </div>
           <div className="mt-4 flex items-center justify-end gap-2">
             {discountDirty ? (
@@ -839,26 +782,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               ) : null}
             </div>
 
-            <div className="rounded-xl border border-ink-100 bg-surface-50 px-3 py-3 grid gap-2 sm:grid-cols-3">
-              <SummaryLine
-                label="Net tutar"
-                hint="KDV hariç"
-                value={formatCurrency(calc.totals.dealerGrandTotal)}
-              />
-              <SummaryLine
-                label={`KDV (${calc.totals.vatIncluded ? `${calc.totals.vatRate}%` : "—"})`}
-                value={
-                  calc.totals.vatIncluded ? formatCurrency(calc.totals.vatAmount) : formatCurrency(0)
-                }
-              />
-              <SummaryLine
-                label="Genel"
-                hint={calc.totals.vatIncluded ? "Net + KDV" : "KDV kapalı = net"}
-                value={formatCurrency(calc.totals.grandTotalWithVat)}
-                tone="brand"
-                big
-              />
-            </div>
+            <QuoteTotalsBreakdown totals={calc.totals} />
 
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between pt-1 border-t border-ink-100">
             <div className="text-xs font-semibold text-ink-600">
@@ -971,6 +895,66 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
         </div>
       </Modal>
     </>
+  );
+}
+
+function QuoteTotalsBreakdown({ totals }) {
+  if (!totals) return null;
+  return (
+    <div className="grid gap-3 text-sm grid-cols-1 sm:grid-cols-2 xl:grid-cols-8">
+      <SummaryLine
+        label="Resmi oda (m²×kalite)"
+        hint="Yalnızca ölçü × seçilen kalite birim fiyatı (tezgah, cam ve ek hırdavat dahil değildir)."
+        value={formatCurrency(totals.officialRoomTotal)}
+      />
+      <SummaryLine
+        label="Tezgah (mutfak)"
+        hint="Mutfak satırlarında girilen mtül × birim fiyat"
+        value={formatCurrency(totals.countertopExtrasTotal)}
+      />
+      <SummaryLine
+        label="Ek kalemler toplamı"
+        hint={`Cam: ${formatCurrency(totals.glassExtrasTotal)} · Hırdavat: ${formatCurrency(totals.hardwareExtrasTotal)} · Hizmet: ${formatCurrency(totals.servicesTotal)}`}
+        value={formatCurrency(
+          totals.glassExtrasTotal + totals.hardwareExtrasTotal + totals.servicesTotal
+        )}
+        tone="warning"
+      />
+      <SummaryLine
+        label="Brüt (indirimsiz)"
+        hint="m²×kalite + tezgah + cam + ek hırdavat + ek hizmetler"
+        value={formatCurrency(totals.officialGrandTotal)}
+        tone="ink"
+      />
+      <SummaryLine
+        label="Toplam indirim"
+        value={`-${formatCurrency(totals.totalDiscount)}`}
+        tone="danger"
+      />
+      <SummaryLine
+        label="Net teklif tutarı"
+        hint={totals.vatIncluded ? "İndirim sonrası net tutar (KDV hariç)" : undefined}
+        value={formatCurrency(totals.dealerGrandTotal)}
+        tone="brand"
+        big
+      />
+      {totals.vatIncluded ? (
+        <>
+          <SummaryLine
+            label={`KDV (${totals.vatRate}%)`}
+            hint="Net tutar üzerinden"
+            value={formatCurrency(totals.vatAmount)}
+            tone="warning"
+          />
+          <SummaryLine
+            label="Genel toplam (KDV dahil)"
+            value={formatCurrency(totals.grandTotalWithVat)}
+            tone="brand"
+            big
+          />
+        </>
+      ) : null}
+    </div>
   );
 }
 
