@@ -13,7 +13,7 @@ import {
  * Her oda kendine has alanları "basic" altında, ortak alanları kökte tutar.
  *
  * Türler:
- *  - gardirop   : en/boy + kapakli toggle + komidin/karyola/şifonyer + cam
+ *  - gardirop   : en/boy ×1.17 (+ kapaklı ×1.30) + komidin/karyola/şifonyer + cam
  *  - balkon     : kombi (en×boy) + balkon dolabı (en×boy, derinlik ≥60 ise +%30)
  *  - mutfak     : tavan/duvar/boy/buz vs.
  *  - banyo      : alt/üst/boy modülleri (derinlik kullanılmaz)

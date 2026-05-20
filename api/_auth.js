@@ -23,6 +23,15 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function createVerifyToken() {
+  return `VT-${crypto.randomBytes(16).toString("hex")}`;
+}
+
+function ensureVerifyToken(user) {
+  if (user.verifyToken && String(user.verifyToken).trim()) return user.verifyToken;
+  return createVerifyToken();
+}
+
 function addOneYear(dateValue = todayIso()) {
   const date = new Date(`${dateValue}T00:00:00`);
   date.setFullYear(date.getFullYear() + 1);
@@ -109,6 +118,7 @@ function authenticateRequest(req, remoteState) {
 }
 
 function createEmptyChamberBlock(cid, chamberName = "") {
+  const { defaultSmtpSettings } = require("./_smtpPresets");
   return {
     id: cid || "CH-PENDING",
     chamberName,
@@ -123,7 +133,9 @@ function createEmptyChamberBlock(cid, chamberName = "") {
     qualities: [],
     hardwarePackages: [],
     servicesCatalog: [],
-    countertopCatalog: []
+    countertopCatalog: [],
+    agreedPartners: [],
+    smtpSettings: defaultSmtpSettings()
   };
 }
 
@@ -165,7 +177,8 @@ function sanitizeManagedUser(user, chamberContext) {
     hiddenFromManagement: false,
     dismissedBroadcastIds: Array.isArray(user.dismissedBroadcastIds) ? [...user.dismissedBroadcastIds] : [],
     broadcastViews: Array.isArray(user.broadcastViews) ? clone(user.broadcastViews) : [],
-    lastLoginAt: typeof user.lastLoginAt === "string" ? user.lastLoginAt : ""
+    lastLoginAt: typeof user.lastLoginAt === "string" ? user.lastLoginAt : "",
+    verifyToken: ensureVerifyToken(user)
   };
 
   if (role === "producer") {
@@ -308,15 +321,26 @@ function filterStateForUser(remoteState, user) {
     broadcasts: Array.isArray(block?.broadcasts) ? [...block.broadcasts] : []
   };
 
+  const agreedPartners = clone(block?.agreedPartners || []);
+  const smtpSettings =
+    user.role === "chamber" ? clone(block?.smtpSettings || require("./_smtpPresets").defaultSmtpSettings()) : undefined;
+  const partnerMailOutbox = (baseState.partnerMailOutbox || []).filter((item) => {
+    if (user.role === "chamber") return item.chamberId === cid;
+    return item.producerUserId === user.id;
+  });
+
   if (user.role === "chamber") {
     return {
-      chambers: [], // sızdırmayı engelle — yalnızca kendi oda blokları yüzey olarak
+      chambers: [],
       chamber: mergedChamberBanner,
       chamberId: cid,
       qualities,
       hardwarePackages,
       servicesCatalog,
       countertopCatalog,
+      agreedPartners,
+      smtpSettings,
+      partnerMailOutbox,
       users: (baseState.users || []).filter(
         (item) =>
           !item.hiddenFromManagement &&
@@ -336,6 +360,8 @@ function filterStateForUser(remoteState, user) {
     hardwarePackages,
     servicesCatalog,
     countertopCatalog,
+    agreedPartners,
+    partnerMailOutbox,
     users: (baseState.users || []).filter((item) => item.id === user.id),
     quotes: (baseState.quotes || []).filter(
       (quote) => quote.ownerUserId === user.id && quote.chamberId === cid
@@ -436,6 +462,14 @@ function mergeStateForUser(existingState, incomingState, user) {
     if (rawCountertops !== undefined) {
       patchChamberInState(nextState, cid, { countertopCatalog: rawCountertops });
     }
+    if (Array.isArray(inc.agreedPartners)) {
+      patchChamberInState(nextState, cid, { agreedPartners: clone(inc.agreedPartners) });
+    }
+    if (inc.smtpSettings && typeof inc.smtpSettings === "object") {
+      patchChamberInState(nextState, cid, { smtpSettings: clone(inc.smtpSettings) });
+    } else if (inc.chamber?.smtpSettings && typeof inc.chamber.smtpSettings === "object") {
+      patchChamberInState(nextState, cid, { smtpSettings: clone(inc.chamber.smtpSettings) });
+    }
 
     const blk = pickChamberBlock(nextState, cid);
     if (blk) {
@@ -504,6 +538,15 @@ function mergeStateForUser(existingState, incomingState, user) {
     );
   }
 
+  const existingOutbox = Array.isArray(nextState.partnerMailOutbox) ? nextState.partnerMailOutbox : [];
+  const otherOutbox = existingOutbox.filter((o) => o.producerUserId !== user.id);
+  const incomingOutbox = Array.isArray(inc.partnerMailOutbox)
+    ? inc.partnerMailOutbox.filter((o) => o && o.producerUserId === user.id)
+    : [];
+  const keptMine = existingOutbox.filter((o) => o.producerUserId === user.id);
+  nextState.partnerMailOutbox =
+    incomingOutbox.length > 0 ? [...otherOutbox, ...incomingOutbox] : [...otherOutbox, ...keptMine];
+
   return migrateInboundState(nextState);
 }
 
@@ -511,6 +554,10 @@ module.exports = {
   authenticateRequest,
   canLogin,
   createSessionToken,
+  createVerifyToken,
+  ensureVerifyToken,
+  getLicenseState,
   filterStateForUser,
-  mergeStateForUser
+  mergeStateForUser,
+  pickChamberBlock
 };

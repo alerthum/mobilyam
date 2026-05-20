@@ -11,6 +11,8 @@ import UsersPage from "./pages/UsersPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import ProducerSummaryPage from "./pages/ProducerSummaryPage.jsx";
 import QuoteEditorPage from "./pages/QuoteEditorPage.jsx";
+import MailboxPage from "./pages/MailboxPage.jsx";
+import VerifyPage from "./pages/VerifyPage.jsx";
 import AppShell from "./components/layout/AppShell.jsx";
 import ChamberBroadcastDock from "./components/layout/ChamberBroadcastDock.jsx";
 import { useProjectActions } from "./hooks/useProjectActions.js";
@@ -115,6 +117,9 @@ function Router() {
       case "contracts":
         content = <ContractsPage onOpenContract={openQuote} />;
         break;
+      case "mailbox":
+        content = <MailboxPage />;
+        break;
       case "profile":
         content = <ProfilePage />;
         break;
@@ -177,7 +182,18 @@ function Router() {
   );
 }
 
+function getVerifyTokenFromPath() {
+  if (typeof window === "undefined") return null;
+  const m = window.location.pathname.match(/^\/verify\/([^/]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 export default function App() {
+  const verifyToken = getVerifyTokenFromPath();
+  if (verifyToken) {
+    return <VerifyPage token={verifyToken} />;
+  }
+
   return (
     <ModalProvider>
       <AppProvider>

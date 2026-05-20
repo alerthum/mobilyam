@@ -359,7 +359,7 @@ export default function DashboardPage() {
           <CardHeader title="Sistem Bilgisi" subtitle="Veri kaynağı ve oda bilgileri" />
           <p className="mt-3 text-sm text-ink-600 leading-relaxed">
             Tüm hesaplamalar 2026 yılında güncellenen iş kurallarına göre yapılır.
-            Gardırop kapaklı/kapaksız seçeneği, vestiyer derinlik kuralları ve
+            Gardırop %17 ve kapaklı ek çarpanı, vestiyer derinlik kuralları ve
             banyo sade hesaplamaları otomatik uygulanır.
           </p>
         </Card>

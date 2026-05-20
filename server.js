@@ -8,6 +8,9 @@ const DIST_ROOT = path.join(ROOT, "dist");
 const STATIC_ROOT = fs.existsSync(path.join(DIST_ROOT, "index.html")) ? DIST_ROOT : ROOT;
 const apiStateHandler = require("./api/state");
 const apiLoginHandler = require("./api/login");
+const apiVerifyHandler = require("./api/verify");
+const apiTestSmtpHandler = require("./api/test-smtp");
+const apiSendPartnerMailHandler = require("./api/send-partner-mail");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -104,11 +107,20 @@ loadLocalEnv();
 
 http
   .createServer(async (req, res) => {
-    if (req.url?.startsWith("/api/state") || req.url?.startsWith("/api/login")) {
+    if (
+      req.url?.startsWith("/api/state") ||
+      req.url?.startsWith("/api/login") ||
+      req.url?.startsWith("/api/verify") ||
+      req.url?.startsWith("/api/test-smtp") ||
+      req.url?.startsWith("/api/send-partner-mail")
+    ) {
       try {
         decorateResponse(res);
         req.body = req.method === "POST" ? await parseJsonBody(req) : {};
         if (req.url?.startsWith("/api/login")) await apiLoginHandler(req, res);
+        else if (req.url?.startsWith("/api/verify")) await apiVerifyHandler(req, res);
+        else if (req.url?.startsWith("/api/test-smtp")) await apiTestSmtpHandler(req, res);
+        else if (req.url?.startsWith("/api/send-partner-mail")) await apiSendPartnerMailHandler(req, res);
         else await apiStateHandler(req, res);
       } catch (error) {
         res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });

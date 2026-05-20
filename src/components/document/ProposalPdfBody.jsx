@@ -40,44 +40,50 @@ const PDF_EMBEDDED_CSS = `
   background: linear-gradient(90deg, #9f1239 0%, #1e3a8a 48%, #0f172a 100%);
 }
 .yk-pdf-inner { padding: 28px 32px 32px 32px; }
-.yk-pdf-header {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+.yk-pdf-header-block {
   padding-bottom: 16px;
   border-bottom: 1px solid #e2e8f0;
 }
-.yk-pdf-brand { display: flex; align-items: flex-start; gap: 12px; min-width: 0; flex: 1; }
-.yk-pdf-logo {
-  height: 40px;
-  width: auto;
+.yk-pdf-header {
+  display: grid;
+  grid-template-columns: 2.5cm 1fr 2.5cm;
+  align-items: center;
+  gap: 12px 16px;
+}
+.yk-pdf-header-center {
+  min-width: 0;
+  text-align: center;
+}
+.yk-pdf-logo,
+.yk-pdf-chamber-seal {
+  width: 2.5cm;
+  height: 2.5cm;
   display: block;
   object-fit: contain;
   flex-shrink: 0;
-}
-.yk-pdf-header-right {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
 }
 .yk-pdf-chamber-seal {
-  height: 46px;
-  width: 46px;
-  display: block;
-  object-fit: contain;
-  flex-shrink: 0;
+  justify-self: end;
 }
-.yk-pdf-chamber-line {
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #64748b;
+.yk-pdf-chamber-title {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #0f172a;
   margin: 0 0 6px 0;
+  text-transform: uppercase;
+}
+.yk-pdf--quote .yk-pdf-chamber-title { color: #0c4a6e; }
+.yk-pdf--contract .yk-pdf-chamber-title { color: #334155; }
+.yk-pdf-doc-title {
+  margin: 0;
+}
+.yk-pdf-header-meta-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 .yk-pdf-doc-title-main {
   display: block;
@@ -529,11 +535,11 @@ export default function ProposalPdfBody({
       <div className="yk-pdf-bar" aria-hidden />
 
       <div className="yk-pdf-inner">
-        <header className="yk-pdf-header">
-          <div className="yk-pdf-brand">
+        <header className="yk-pdf-header-block">
+          <div className="yk-pdf-header">
             <img className="yk-pdf-logo" src={primaryBrandLogoUrl} alt="" />
-            <div>
-              <p className="yk-pdf-chamber-line">{chamberBannerName || "Oda birliği"}</p>
+            <div className="yk-pdf-header-center">
+              <p className="yk-pdf-chamber-title">{chamberBannerName || "Oda birliği"}</p>
               <h1 className="yk-pdf-doc-title">
                 <span className="yk-pdf-doc-title-main">{docTitle}</span>
                 {subtitle ? (
@@ -541,18 +547,18 @@ export default function ProposalPdfBody({
                 ) : null}
               </h1>
             </div>
-          </div>
-          <div className="yk-pdf-header-right">
             <img className="yk-pdf-chamber-seal" src={chamberSealLogoUrl} alt="" />
-            {!isContract ? (
+          </div>
+          {!isContract ? (
+            <div className="yk-pdf-header-meta-row">
               <div className="yk-pdf-meta">
                 <p className="yk-pdf-meta-label">Belge</p>
                 <p className="yk-pdf-meta-num">#{quote.number}</p>
                 <p className="yk-pdf-meta-date">{formatDate(quote.date)}</p>
                 <p className="yk-pdf-meta-status">{WORKFLOW_LABELS[wf] || wf}</p>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </header>
 
         <div className="yk-pdf-project">

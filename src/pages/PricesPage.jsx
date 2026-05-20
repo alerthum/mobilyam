@@ -13,6 +13,10 @@ import { useConfirm, useToast } from "../context/ModalContext.jsx";
 import { formatCurrency } from "../utils/format.js";
 import CatalogPdfBody from "../components/document/CatalogPdfBody.jsx";
 import { downloadElementAsPdf, formatPdfErrorForUser } from "../utils/pdf.js";
+import AgreedPartnersSection from "../components/chamber/AgreedPartnersSection.jsx";
+import SmtpSettingsSection from "../components/chamber/SmtpSettingsSection.jsx";
+import { defaultSmtpSettings } from "../config/smtpPresets.js";
+import clsx from "clsx";
 
 function reorderListByIndex(list, fromIndex, toIndex) {
   if (
@@ -44,6 +48,9 @@ export default function PricesPage() {
   /** Yalnızca oda yönetimi katalog düzenleyebilir; sistem yöneticisi salt okunur görür. */
   const canEdit = user?.role === "chamber";
   const catalogPdfRef = useRef(null);
+  const [settingsTab, setSettingsTab] = useState("catalog");
+  const agreedPartners = remote?.agreedPartners || [];
+  const smtpSettings = remote?.smtpSettings || defaultSmtpSettings();
 
   async function exportCatalogPdf(fileBase = "Malzeme-m2-Ek-Hizmetler") {
     await new Promise((r) => requestAnimationFrame(r));
@@ -255,8 +262,31 @@ export default function PricesPage() {
 
   return (
     <>
-      <TopBar title="Fiyatlar" subtitle="Resmi katalog" />
+      <TopBar title="Fiyatlar" subtitle="Katalog, anlaşmalı firmalar ve e-posta" />
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-5">
+        {canEdit ? (
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "catalog", label: "Malzeme kataloğu" },
+              { id: "partners", label: "Anlaşmalı firmalar" },
+              { id: "smtp", label: "E-posta (SMTP)" }
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSettingsTab(t.id)}
+                className={clsx(
+                  "rounded-xl px-4 py-2 text-sm font-semibold border transition",
+                  settingsTab === t.id
+                    ? "bg-brand-600 text-white border-brand-600"
+                    : "bg-white text-ink-700 border-ink-200 hover:bg-ink-50"
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {storageMode === "local-file" && (
           <div className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 leading-relaxed">
             <strong className="font-semibold">Yerel geliştirme modu:</strong> Kayıtlar veritabanı yerine
@@ -266,6 +296,32 @@ export default function PricesPage() {
             <code className="text-xs bg-amber-100/80 px-1 rounded">DATABASE_URL</code> tanımlı olmalıdır.
           </div>
         )}
+        {settingsTab === "partners" && canEdit ? (
+          <AgreedPartnersSection
+            partners={agreedPartners}
+            canEdit={canEdit}
+            onChange={(list) =>
+              commit((d) => {
+                d.agreedPartners = list;
+              })
+            }
+          />
+        ) : null}
+
+        {settingsTab === "smtp" && canEdit ? (
+          <SmtpSettingsSection
+            settings={smtpSettings}
+            canEdit={canEdit}
+            onChange={(next) =>
+              commit((d) => {
+                d.smtpSettings = next;
+              })
+            }
+          />
+        ) : null}
+
+        {settingsTab === "catalog" || !canEdit ? (
+        <>
         <div
           ref={catalogPdfRef}
           className="fixed left-0 top-0 z-[60] w-[210mm] max-w-[100vw] max-h-[100vh] overflow-auto opacity-[0.02] pointer-events-none bg-white"
@@ -708,6 +764,8 @@ export default function PricesPage() {
             </div>
           )}
         </Card>
+        </>
+        ) : null}
       </div>
     </>
   );

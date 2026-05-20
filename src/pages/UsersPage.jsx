@@ -25,6 +25,7 @@ import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import { useConfirm, useToast } from "../context/ModalContext.jsx";
 import { formatDate, formatDateTime, todayIso, addOneYear, addYears } from "../utils/format.js";
 import { downloadElementAsPdf, formatPdfErrorForUser } from "../utils/pdf.js";
+import MemberQrButton from "../components/member/MemberQrButton.jsx";
 
 const ROLE_LABEL = {
   chamber: "Oda Yönetimi",
@@ -550,6 +551,7 @@ export default function UsersPage() {
                       )}
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                      {u.verifyToken ? <MemberQrButton user={u} size="sm" /> : null}
                       {u.role === "producer" && user?.role === "chamber" && (
                         <>
                           <Button

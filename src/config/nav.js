@@ -6,7 +6,8 @@ import {
   UserRound,
   UsersRound,
   PanelsTopLeft,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Mail
 } from "lucide-react";
 
 /**
@@ -31,6 +32,7 @@ export const BOTTOM_TABS = [
     roles: ["producer"]
   },
   { id: "prices", label: "Oda Fiyat Listesi", icon: Wallet, roles: ["producer"] },
+  { id: "mailbox", label: "Posta Kutusu", icon: Mail, roles: ["producer"] },
   {
     id: "profile",
     label: "Profil",
@@ -59,6 +61,7 @@ export const SIDEBAR_NAV = [
     roles: ["producer"]
   },
   { id: "prices", label: "Oda Fiyat Listesi", icon: Wallet, roles: ["producer"] },
+  { id: "mailbox", label: "Posta Kutusu", icon: Mail, roles: ["producer"] },
   { id: "dashboard", label: "Duyurular", icon: PanelsTopLeft, roles: ["chamber"] },
   { id: "settings", label: "Malzeme ve hizmet", icon: SlidersHorizontal, roles: ["chamber"] },
   { id: "profile", label: "Profil", icon: UserRound, roles: ["producer", "chamber", "system_admin"] }

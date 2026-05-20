@@ -15,7 +15,8 @@ import {
   Power,
   PowerOff,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Mail
 } from "lucide-react";
 import Modal from "../components/modals/Modal.jsx";
 import RoomTypePicker from "../components/quote/RoomTypePicker.jsx";
@@ -45,6 +46,7 @@ import { createRoom } from "../config/rooms.js";
 import { calculateQuoteTotals } from "../utils/calculations.js";
 import { formatCurrency, formatNumber } from "../utils/format.js";
 import { isProjectActive, projectStatusLabel } from "../utils/projectLifecycle.js";
+import SendPartnerMailModal from "../components/quote/SendPartnerMailModal.jsx";
 
 export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   const { remote, saveNow, saveStatus, commit } = useApp();
@@ -70,6 +72,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
     discount: false,
     flow: false
   });
+  const [partnerMailOpen, setPartnerMailOpen] = useState(false);
   const pdfHolderRef = useRef(null);
   const saving = saveStatus === "saving";
 
@@ -789,6 +792,18 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
               Durum: <span className="text-ink-900">{WORKFLOW_LABELS[quoteWorkflow(quote)] || "Hazırlanıyor"}</span>
             </div>
             <div className="flex flex-1 flex-col gap-1.5 min-w-0 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+              {(quoteWorkflow(quote) === "contracted" ||
+                quoteWorkflow(quote) === "completed") && (
+                <Button
+                  variant="soft"
+                  size="sm"
+                  className="h-9 text-xs shrink-0"
+                  icon={Mail}
+                  onClick={() => setPartnerMailOpen(true)}
+                >
+                  Firmaya m² gönder
+                </Button>
+              )}
               <Button
                 variant="dark"
                 size="sm"
@@ -813,6 +828,14 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
           )}
         </Card>
       </div>
+
+      <SendPartnerMailModal
+        open={partnerMailOpen}
+        onClose={() => setPartnerMailOpen(false)}
+        quote={quote}
+        user={currentUser}
+        chamberName={remote?.chamber?.chamberName}
+      />
 
       {/* Modallar */}
       <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} size="lg">

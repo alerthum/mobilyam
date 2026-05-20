@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useApp, useCurrentUser } from "../../context/AppContext.jsx";
 import Logo from "../ui/Logo.jsx";
+import MemberQrButton from "../member/MemberQrButton.jsx";
 
 export default function TopBar({ title, subtitle, action }) {
   const { saveStatus } = useApp();
@@ -25,7 +26,9 @@ export default function TopBar({ title, subtitle, action }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex flex-col items-end">
+          <div className="hidden sm:flex items-center gap-2">
+            {user?.verifyToken ? <MemberQrButton user={user} size="sm" /> : null}
+            <div className="flex flex-col items-end">
             <span className="text-[11px] font-semibold text-ink-700 truncate max-w-[160px]">
               {user?.fullName}
             </span>
@@ -51,6 +54,7 @@ export default function TopBar({ title, subtitle, action }) {
                 )}
               </span>
             )}
+            </div>
           </div>
           {action}
         </div>

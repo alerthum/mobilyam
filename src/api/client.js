@@ -118,6 +118,42 @@ export async function loadState() {
   }
 }
 
+export async function testSmtp(to, smtpSettings) {
+  try {
+    const res = await fetch("/api/test-smtp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ to, smtpSettings })
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: payload?.error || "SMTP test başarısız" };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: "Sunucuya ulaşılamadı" };
+  }
+}
+
+export async function sendPartnerMail(quoteId, partnerId, reportSnapshot) {
+  try {
+    const res = await fetch("/api/send-partner-mail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ quoteId, partnerId, reportSnapshot })
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: payload?.error || "Mail gönderilemedi",
+        outboxItem: payload?.outboxItem
+      };
+    }
+    return { ok: true, outboxItem: payload.outboxItem };
+  } catch (e) {
+    return { ok: false, error: "Sunucuya ulaşılamadı" };
+  }
+}
+
 export async function saveState(remoteState) {
   const token = getSessionToken();
   if (!token) return { ok: false, storageMode: "locked", unauthorized: true };

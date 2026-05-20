@@ -2,6 +2,8 @@
  * Tek kiracılı (düz) → çok kiracılı `chambers[]` modeli migrasyonu.
  * Idempotent — her yüklemede güvenli.
  */
+const crypto = require("crypto");
+const { defaultSmtpSettings } = require("./_smtpPresets");
 const DEFAULT_CHAMBER_ID = "CH-DEFAULT";
 
 const DEFAULT_COUNTERTOP_CATALOG = [
@@ -168,9 +170,29 @@ function migrateInboundState(remote) {
   consolidatePrimaryUshakTenant(s);
   migrateProjectsToStandaloneQuotes(s);
   backfillQuoteChamberIds(s);
+  migrateMemberQrAndPartners(s);
 
   /** API yanıtta kök shim: filtre sırasında doldurulur; tek kaynak chambers[]. */
   return s;
+}
+
+function migrateMemberQrAndPartners(s) {
+  (s.users || []).forEach((u) => {
+    if (!u || typeof u !== "object") return;
+    if (!u.verifyToken || !String(u.verifyToken).trim()) {
+      u.verifyToken = `VT-${crypto.randomBytes(16).toString("hex")}`;
+    }
+  });
+
+  (s.chambers || []).forEach((c) => {
+    if (!c || typeof c !== "object") return;
+    if (!Array.isArray(c.agreedPartners)) c.agreedPartners = [];
+    if (!c.smtpSettings || typeof c.smtpSettings !== "object") {
+      c.smtpSettings = defaultSmtpSettings();
+    }
+  });
+
+  if (!Array.isArray(s.partnerMailOutbox)) s.partnerMailOutbox = [];
 }
 
 /** Eski kayıtlarda teklif.chamberId boş kalırsa üretici kullanıcıdan doldur (oda filtreleri için). */

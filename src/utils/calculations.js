@@ -69,14 +69,8 @@ export function calcVestiyer(basic) {
 
 /**
  * Gardırop:
- *  - "Kapak/panel alanı" ve "Kapak/panel yüksekliği" KALDIRILDI.
- *  - Toggle: kapaklı / kapaksız
- *      kapaklı  → en × boy × 1.3
- *      kapaksız → en × boy
- *  - Ana gardırop derinliği (boy dolap kuralı ile aynı):
- *      depth ≤ 45  → ilave yok
- *      45 < depth ≤ 60 → × 1.30 (%30)
- *      depth > 60  → × 1.45 (%45)
+ *  - Ana alan: en × boy × 1.17 (derinlik kullanılmaz)
+ *  - Kapaklı toggle: ek × 1.30 → en × boy × 1.17 × 1.30
  *  - Cam çeşitleri: kullanıcı manuel ad + fiyat girer; doğrudan toplama eklenir.
  *
  * Yatak Odası ARTIK Gardırop modülünün İÇİNDEDİR:
@@ -135,26 +129,34 @@ export function previewKaryolaM2(k) {
   return { m2: round(m2, 3), formula: formula || "—" };
 }
 
+const GARDIROP_BASE_FACTOR = 1.17;
+const GARDIROP_KAPAK_FACTOR = 1.3;
+
+/** Ana gardırop panel eşdeğeri (önizleme). */
+export function previewGardiropWardrobeM2(room) {
+  const w = num(room.width);
+  const h = num(room.height);
+  if (w <= 0 || h <= 0) return { m2: 0, formula: "—" };
+  const kapakFactor = room.kapakli ? GARDIROP_KAPAK_FACTOR : 1;
+  const m2 = cmCmToM2(w, h) * GARDIROP_BASE_FACTOR * kapakFactor;
+  let formula = "en × boy × 1.17";
+  if (room.kapakli) formula += " × 1.30 (kapak)";
+  return { m2: round(m2, 3), formula };
+}
+
 export function calcGardirop(room) {
   const w = num(room.width);
   const h = num(room.height);
-  const d = num(room.depth);
-  const wardrobeFactor = room.kapakli ? 1.3 : 1;
-  let depthFactor = 1;
-  if (d > 60) depthFactor = 1.45;
-  else if (d > 45) depthFactor = 1.3;
-
-  const wardrobeM2 = cmCmToM2(w, h) * wardrobeFactor * depthFactor;
+  const kapakFactor = room.kapakli ? GARDIROP_KAPAK_FACTOR : 1;
+  const wardrobeM2 = cmCmToM2(w, h) * GARDIROP_BASE_FACTOR * kapakFactor;
 
   const breakdown = [];
   if (w > 0 && h > 0) {
     const kapakPart = room.kapakli ? " × 1.30 (kapak)" : "";
-    const depthPart =
-      d > 60 ? " × 1.45 (derinlik > 60)" : d > 45 ? " × 1.30 (derinlik 46–60)" : "";
     breakdown.push({
       label: room.kapakli ? "Gardırop (Kapaklı)" : "Gardırop (Kapaksız)",
       m2: round(wardrobeM2, 3),
-      formula: `en × boy${kapakPart}${depthPart}`.trim() || "en × boy"
+      formula: `en × boy × 1.17${kapakPart}`.trim()
     });
   }
 

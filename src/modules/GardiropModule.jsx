@@ -15,6 +15,7 @@ import {
   createCam
 } from "../config/rooms.js";
 import {
+  previewGardiropWardrobeM2,
   previewKomidinM2,
   previewKaryolaM2,
   previewSifonyerM2
@@ -27,6 +28,7 @@ import { useConfirm } from "../context/ModalContext.jsx";
  */
 export default function GardiropModule({ room, onChange }) {
   const confirm = useConfirm();
+  const wardrobePreview = previewGardiropWardrobeM2(room);
 
   function patch(partial) {
     onChange({ ...room, ...partial });
@@ -74,7 +76,7 @@ export default function GardiropModule({ room, onChange }) {
           subtitle="Toplam genişlik ve yükseklik yeterli"
           accent="bg-brand-50 text-brand-600"
         />
-        <div className="mt-4 grid sm:grid-cols-3 gap-3">
+        <div className="mt-4 grid sm:grid-cols-2 gap-3 max-w-xl">
           <Field label="Genişlik">
             <DecimalInput
               value={room.width}
@@ -89,13 +91,6 @@ export default function GardiropModule({ room, onChange }) {
               suffix="cm"
             />
           </Field>
-          <Field label="Derinlik" hint="≤45 ilavesiz · 46–60 +%30 · >60 +%45 (gardırop alanına)">
-            <DecimalInput
-              value={room.depth}
-              onValueChange={(v) => patch({ depth: v })}
-              suffix="cm"
-            />
-          </Field>
         </div>
         <div className="mt-3">
           <Toggle
@@ -104,11 +99,12 @@ export default function GardiropModule({ room, onChange }) {
             label={room.kapakli ? "Kapaklı gardırop" : "Kapaksız gardırop"}
             description={
               room.kapakli
-                ? "Kapak için en × boy × 1.30; derinlik kuralı buna ek çarpan olarak uygulanır."
-                : "Kapaksızda en × boy; derinlik kuralı (46–60 %30, >60 %45) çarpan olarak uygulanır."
+                ? "en × boy × 1.17 × 1.30 (kapaklı)"
+                : "en × boy × 1.17"
             }
           />
         </div>
+        <PanelM2Hint m2={wardrobePreview.m2} formula={wardrobePreview.formula} />
       </Card>
 
       {/* Komidin */}
