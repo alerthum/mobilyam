@@ -6,6 +6,10 @@ function fmtM2(n) {
   return formatNumber(Number(n) || 0, " m²");
 }
 
+function fmtLinearM(n) {
+  return formatNumber(Number(n) || 0, " m");
+}
+
 /**
  * Sözleşme maili için fiyatsız m² raporu (oda oda detay).
  */
@@ -38,7 +42,8 @@ export function buildQuoteM2Report(quote, qualities, countertopCatalog, context 
       if (mutfak.tezgahLinearM > 0) {
         lines.push({
           label: "Tezgah uzunluğu",
-          m2: formatNumber(mutfak.tezgahLinearM, " m"),
+          m2: fmtLinearM(mutfak.tezgahLinearM),
+          unit: "m",
           formula: "",
           detail: mutfak.tezgahLinearDetail || ""
         });
@@ -48,6 +53,7 @@ export function buildQuoteM2Report(quote, qualities, countertopCatalog, context 
     return {
       roomLabel,
       roomType: room.type,
+      qualityName: price.qualityName || "—",
       totalM2: fmtM2(price.panelEquivalentM2),
       lines
     };

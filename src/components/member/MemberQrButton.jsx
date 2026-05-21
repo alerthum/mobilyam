@@ -73,15 +73,21 @@ export default function MemberQrButton({ user, size = "sm" }) {
         {!isSmall ? <span>QR</span> : null}
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} size="md">
-        <div className="p-6 text-center">
+      <Modal open={open} onClose={() => setOpen(false)} size="md" className="max-w-sm">
+        <div className="p-5 sm:p-6 text-center">
           <p className="yk-eyebrow">Üyelik doğrulama</p>
-          <h3 className="yk-display text-xl text-ink-900 mt-1">{user.company || user.fullName}</h3>
+          <h3 className="yk-display text-lg sm:text-xl text-ink-900 mt-1">
+            {user.company || user.fullName}
+          </h3>
           <div className="mt-4 flex justify-center">
             {dataUrl ? (
-              <img src={dataUrl} alt="QR kod" className="w-[280px] h-[280px] rounded-xl border border-ink-100" />
+              <img
+                src={dataUrl}
+                alt="QR kod"
+                className="w-[min(260px,72vw)] h-[min(260px,72vw)] max-w-full rounded-xl border border-ink-100"
+              />
             ) : (
-              <div className="w-[280px] h-[280px] rounded-xl bg-ink-50 animate-pulse" />
+              <div className="w-[min(260px,72vw)] aspect-square rounded-xl bg-ink-50 animate-pulse" />
             )}
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">

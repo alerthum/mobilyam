@@ -15,7 +15,7 @@ function createTransport(smtpSettings) {
   });
 }
 
-async function sendMail(smtpSettings, { to, subject, html, text }) {
+async function sendMail(smtpSettings, { to, subject, html, text, attachments }) {
   const cfg = resolveSmtpConfig(smtpSettings);
   const transport = createTransport(cfg);
   const from = cfg.fromEmail
@@ -23,7 +23,14 @@ async function sendMail(smtpSettings, { to, subject, html, text }) {
       ? `"${cfg.fromName}" <${cfg.fromEmail}>`
       : cfg.fromEmail
     : cfg.user;
-  await transport.sendMail({ from, to, subject, html, text: text || undefined });
+  await transport.sendMail({
+    from,
+    to,
+    subject,
+    html,
+    text: text || undefined,
+    attachments: attachments || undefined
+  });
 }
 
 module.exports = { sendMail };

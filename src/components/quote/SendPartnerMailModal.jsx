@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import Modal from "../modals/Modal.jsx";
 import Field from "../inputs/Field.jsx";
@@ -7,6 +7,8 @@ import { buildQuoteM2Report } from "../../utils/m2Report.js";
 import { sendPartnerMail } from "../../api/client.js";
 import { useApp } from "../../context/AppContext.jsx";
 import { useToast } from "../../context/ModalContext.jsx";
+import M2PartnerPdfBody from "../document/M2PartnerPdfBody.jsx";
+import { elementToPdfBase64, formatPdfErrorForUser } from "../../utils/pdf.js";
 
 export default function SendPartnerMailModal({
   open,
@@ -19,6 +21,8 @@ export default function SendPartnerMailModal({
   const toast = useToast();
   const [partnerId, setPartnerId] = useState("");
   const [sending, setSending] = useState(false);
+  const [pdfRendering, setPdfRendering] = useState(false);
+  const pdfHostRef = useRef(null);
 
   const partners = useMemo(
     () => (remote?.agreedPartners || []).filter((p) => p.status !== "passive" && p.email),
@@ -37,8 +41,27 @@ export default function SendPartnerMailModal({
   async function handleSend() {
     if (!partnerId || !report) return;
     setSending(true);
+    let pdfBase64 = "";
     try {
-      const res = await sendPartnerMail(quote.id, partnerId, report);
+      setPdfRendering(true);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const root = pdfHostRef.current?.querySelector("[data-yk-print-root]");
+      if (root) {
+        try {
+          pdfBase64 = await elementToPdfBase64(
+            root,
+            `sozlesme-m2-${quote?.number || "rapor"}`
+          );
+        } catch (pdfErr) {
+          toast.warning(
+            formatPdfErrorForUser(pdfErr, "PDF") +
+              " Mail yine de gönderilecek (PDF eki olmadan)."
+          );
+        }
+      }
+      setPdfRendering(false);
+
+      const res = await sendPartnerMail(quote.id, partnerId, report, pdfBase64);
       if (res.outboxItem) {
         updateRemote((d) => {
           d.partnerMailOutbox = [...(d.partnerMailOutbox || []), res.outboxItem];
@@ -51,6 +74,7 @@ export default function SendPartnerMailModal({
         toast.error(res.error || "Gönderilemedi");
       }
     } finally {
+      setPdfRendering(false);
       setSending(false);
     }
   }
@@ -93,7 +117,9 @@ export default function SendPartnerMailModal({
             </p>
             {(report.rooms || []).map((room, i) => (
               <p key={i} className="text-ink-600 text-xs mt-1">
-                {room.roomLabel}: {room.totalM2} ({room.lines?.length || 0} satır)
+                {room.roomLabel}: {room.totalM2}
+                {room.qualityName ? ` · ${room.qualityName}` : ""} ({room.lines?.length || 0}{" "}
+                satır)
               </p>
             ))}
           </div>
@@ -109,10 +135,20 @@ export default function SendPartnerMailModal({
             disabled={!partnerId || sending || partners.length === 0}
             onClick={handleSend}
           >
-            {sending ? "Gönderiliyor…" : "Mail gönder"}
+            {sending || pdfRendering ? "Gönderiliyor…" : "Mail gönder (PDF ekli)"}
           </Button>
         </div>
       </div>
+
+      {report ? (
+        <div
+          ref={pdfHostRef}
+          className="fixed left-[-10000px] top-0 w-[210mm] pointer-events-none opacity-0"
+          aria-hidden
+        >
+          <M2PartnerPdfBody report={report} />
+        </div>
+      ) : null}
     </Modal>
   );
 }

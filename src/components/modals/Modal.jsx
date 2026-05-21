@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 import { X } from "lucide-react";
 
@@ -42,19 +43,21 @@ export default function Modal({
           ? "max-w-5xl"
           : "max-w-md";
 
-  return (
-    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center">
+  const portal =
+    typeof document !== "undefined" ? document.body : null;
+
+  const node = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
       <div
-        className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm yk-animate-fade"
+        className="absolute inset-0 bg-ink-900/50 backdrop-blur-md yk-animate-fade"
         onClick={() => closeOnBackdrop && onClose?.()}
         aria-hidden="true"
       />
       <div
         className={clsx(
-          "relative w-full sm:w-auto sm:min-w-[420px]",
-          "bg-white rounded-t-2xl sm:rounded-2xl yk-pop",
-          "yk-animate-slide sm:yk-animate-pop",
-          "yk-safe-bottom max-h-[90vh] overflow-hidden flex flex-col",
+          "relative w-full max-w-[min(100%,calc(100vw-2rem))] sm:w-auto sm:min-w-[320px]",
+          "bg-white rounded-2xl yk-pop yk-animate-pop shadow-2xl",
+          "max-h-[min(90vh,calc(100dvh-2rem))] overflow-y-auto flex flex-col",
           sizeClass,
           className
         )}
@@ -76,4 +79,7 @@ export default function Modal({
       </div>
     </div>
   );
+
+  if (portal) return createPortal(node, portal);
+  return node;
 }

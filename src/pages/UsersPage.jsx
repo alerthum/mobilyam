@@ -34,7 +34,7 @@ const ROLE_LABEL = {
 };
 
 export default function UsersPage() {
-  const { remote, commit } = useApp();
+  const { remote, commit, storageMode } = useApp();
   const user = useCurrentUser();
   const confirm = useConfirm();
   const toast = useToast();
@@ -349,6 +349,21 @@ export default function UsersPage() {
         }
       />
       <div className="px-4 sm:px-6 py-5 max-w-6xl mx-auto space-y-4">
+        {storageMode !== "live" ? (
+          <div className="rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-900 leading-relaxed">
+            <strong className="font-semibold">Canlı veritabanı bağlı değil.</strong>{" "}
+            Gördüğünüz liste önbellek veya demo olabilir; asıl kullanıcılar Postgres’te duruyor.
+            Profil → Bağlantı modu <strong>Canlı veritabanı</strong> olmalı. Çıkış yapıp{" "}
+            <code className="text-xs bg-warning-100/80 px-1 rounded">npm run dev</code> ile yeniden
+            giriş yapın.
+          </div>
+        ) : null}
+        {isSysAdmin ? (
+          <div className="rounded-xl border border-ink-100 bg-surface-50 px-4 py-3 text-sm text-ink-600">
+            Sistem yöneticisi olarak yalnızca <strong>oda hesapları</strong> listelenir. Mobilyacı
+            listesi için <strong>oda / oda2026</strong> ile giriş yapın.
+          </div>
+        ) : null}
         <div className="yk-input-shell">
           <Search size={18} className="text-ink-400" />
           <input

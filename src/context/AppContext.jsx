@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { flushSync } from "react-dom";
 import * as api from "../api/client.js";
+import { useToast } from "./ModalContext.jsx";
 
 /**
  * Uygulama global state — uzaktan veri (chamber, qualities, users, quotes)
@@ -27,11 +28,13 @@ import * as api from "../api/client.js";
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
+  const toast = useToast();
   const [remote, setRemote] = useState(null);
   const [auth, setAuth] = useState(api.getSessionAuth());
   const [storageMode, setStorageMode] = useState("locked");
   const [bootstrapped, setBootstrapped] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved | error
+  const storageWarnedRef = useRef(false);
 
   // Son persist edilen state. UI dirty-check için kullanır.
   const lastSavedRef = useRef(null);
@@ -55,6 +58,23 @@ export function AppProvider({ children }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!bootstrapped || storageWarnedRef.current) return;
+    if (storageMode === "live") return;
+    storageWarnedRef.current = true;
+    if (storageMode === "browser") {
+      toast.warning(
+        "Sunucuya bağlanılamadı; tarayıcıdaki eski önbellek gösteriliyor olabilir. Çıkış yapıp yeniden giriş yapın."
+      );
+    } else if (storageMode === "demo") {
+      toast.warning("Veritabanına ulaşılamadı; demo veri gösteriliyor.");
+    } else if (storageMode === "local-file") {
+      toast.warning(
+        "Yerel dosya modu (data/local-app-state.json). Asıl kayıtlar Postgres’te; .env.local içinde DATABASE_URL olmalı."
+      );
+    }
+  }, [bootstrapped, storageMode, toast]);
 
   const persist = useCallback(async (nextState) => {
     if (!nextState) return { ok: false };

@@ -325,3 +325,39 @@ export async function downloadElementAsPdf(element, filenameBase) {
 
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * @param {HTMLElement} element data-yk-print-root kökü
+ * @returns {Promise<string>} PDF içeriği base64
+ */
+export async function elementToPdfBase64(element, filenameBase = "rapor") {
+  const factory = getHtml2PdfFactory();
+  if (!factory || !element) {
+    throw new Error("PDF oluşturulamadı.");
+  }
+  const safe = (filenameBase || "rapor").replace(/[^\w\-.ğüşıöçĞÜŞİÖÇ ]+/gu, "").trim();
+  const name = `${safe || "rapor"}.pdf`;
+  const opts = buildPdfOptions(
+    name,
+    buildHtml2CanvasOptions(element, { scale: 1.5 }),
+    ["css", "legacy"]
+  );
+
+  try {
+    const blob = await factory().set(opts).from(element).outputPdf("blob");
+    const buf = await blob.arrayBuffer();
+    return arrayBufferToBase64(buf);
+  } catch (e) {
+    console.error("[yk-pdf] base64", e);
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+}

@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { getRemoteState, saveRemoteState } = require("./_db");
 const { authenticateRequest, pickChamberBlock } = require("./_auth");
 const { sendMail } = require("./_mail");
+const { getMailLogoDataUris } = require("./_m2MailAssets");
 
 function clone(v) {
   return JSON.parse(JSON.stringify(v || {}));
@@ -14,22 +15,37 @@ function buildHtmlFromSnapshot(report) {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
+  const logos = getMailLogoDataUris();
+  const headerLogos =
+    logos.mobar || logos.chamber
+      ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+          <tr>
+            ${logos.mobar ? `<td width="80" align="left"><img src="${logos.mobar}" alt="" width="72" height="72" style="display:block;object-fit:contain;"/></td>` : "<td width=\"80\"></td>"}
+            <td align="center" style="font-size:13px;font-weight:700;color:#334155;text-transform:uppercase;">${esc(report.chamberName)}</td>
+            ${logos.chamber ? `<td width="80" align="right"><img src="${logos.chamber}" alt="" width="72" height="72" style="display:block;object-fit:contain;margin-left:auto;"/></td>` : "<td width=\"80\"></td>"}
+          </tr>
+        </table>`
+      : `<p style="font-size:12px;color:#64748b;text-align:center;">${esc(report.chamberName)}</p>`;
+
   const roomBlocks = (report.rooms || [])
     .map((room) => {
+      const qualityLine = room.qualityName
+        ? ` · <span style="color:#475569;">Kalite: ${esc(room.qualityName)}</span>`
+        : "";
       const rows = (room.lines || [])
         .map(
           (line) =>
             `<tr><td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;">${esc(line.label)}</td>` +
-            `<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:right;">${esc(line.m2)} m²</td>` +
+            `<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;">${esc(line.m2)}</td>` +
             `<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:12px;color:#64748b;">${esc(line.detail || line.formula || "")}</td></tr>`
         )
         .join("");
       return `
-        <h3 style="margin:16px 0 8px;font-size:15px;">${esc(room.roomLabel)} — ${esc(room.totalM2)} m²</h3>
+        <h3 style="margin:16px 0 8px;font-size:15px;color:#0f172a;">${esc(room.roomLabel)} — ${esc(room.totalM2)}${qualityLine}</h3>
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead><tr style="background:#f1f5f9;">
             <th style="padding:6px 8px;text-align:left;">Kalem</th>
-            <th style="padding:6px 8px;text-align:right;">m²</th>
+            <th style="padding:6px 8px;text-align:right;">Alan</th>
             <th style="padding:6px 8px;text-align:left;">Detay</th>
           </tr></thead>
           <tbody>${rows || `<tr><td colspan="3">—</td></tr>`}</tbody>
@@ -39,16 +55,33 @@ function buildHtmlFromSnapshot(report) {
 
   return `
     <div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:720px;">
-      <p style="font-size:12px;color:#64748b;">${esc(report.chamberName)}</p>
-      <h1 style="font-size:20px;">${esc(report.projectName)} — #${esc(report.quoteNumber)}</h1>
-      <p style="font-size:13px;">
+      ${headerLogos}
+      <h1 style="font-size:20px;text-align:center;margin:0 0 8px;">${esc(report.projectName)} — #${esc(report.quoteNumber)}</h1>
+      <p style="font-size:13px;text-align:center;">
         <strong>Mobilyacı:</strong> ${esc(report.producerCompany || report.producerName)}<br/>
         <strong>Tarih:</strong> ${esc(report.contractDate || report.quoteDate || "")}<br/>
-        <strong>Toplam:</strong> ${esc(report.totalM2)} m² (${report.roomCount} oda)
+        <strong>Toplam:</strong> ${esc(report.totalM2)} (${report.roomCount} oda)
       </p>
-      <p style="font-size:12px;color:#64748b;">Yalnızca m² detayları — fiyat bilgisi yoktur.</p>
+      <p style="font-size:12px;color:#64748b;text-align:center;">Yalnızca m² detayları — fiyat bilgisi yoktur. Ekte PDF raporu bulunur.</p>
       ${roomBlocks}
     </div>`;
+}
+
+function pdfAttachmentFromBody(pdfBase64, quoteNumber, projectName) {
+  const raw = String(pdfBase64 || "").trim();
+  if (!raw) return [];
+  const safeName = String(projectName || "sozlesme")
+    .replace(/[^\w\-.ğüşıöçĞÜŞİÖÇ ]+/gu, "")
+    .trim()
+    .slice(0, 40);
+  return [
+    {
+      filename: `${safeName || "sozlesme"}-m2-${quoteNumber || "rapor"}.pdf`,
+      content: raw,
+      encoding: "base64",
+      contentType: "application/pdf"
+    }
+  ];
 }
 
 module.exports = async function handler(req, res) {
@@ -62,6 +95,7 @@ module.exports = async function handler(req, res) {
     const quoteId = String(req.body?.quoteId || "").trim();
     const partnerId = String(req.body?.partnerId || "").trim();
     const reportSnapshot = req.body?.reportSnapshot;
+    const pdfBase64 = req.body?.pdfBase64;
     if (!quoteId || !partnerId || !reportSnapshot) {
       res.status(400).json({ error: "quoteId, partnerId ve reportSnapshot zorunludur" });
       return;
@@ -125,7 +159,12 @@ module.exports = async function handler(req, res) {
         to: partner.email,
         subject,
         html,
-        text: `${subject}\n\nToplam ${outboxItem.summary.totalM2} m² — ${outboxItem.summary.roomCount} oda.`
+        text: `${subject}\n\nToplam ${outboxItem.summary.totalM2} — ${outboxItem.summary.roomCount} oda.\n\nEkte PDF m² raporu.`,
+        attachments: pdfAttachmentFromBody(
+          pdfBase64,
+          quote.number,
+          reportSnapshot.projectName
+        )
       });
     } catch (mailErr) {
       outboxItem.status = "failed";
