@@ -1,16 +1,14 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
   "rewrites": [
     {
       "source": "/verify/:token",
-      "destination": "/index.html"
+      "destination": "/"
     },
     {
-      "source": "/((?!api).*)",
-      "destination": "/index.html"
+      "source": "/(.*)",
+      "destination": "/"
     }
   ]
 }
