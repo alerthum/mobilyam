@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ShieldCheck, AlertCircle } from "lucide-react";
+import { ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 import { formatDate } from "../utils/format.js";
 import Logo from "../components/ui/Logo.jsx";
 
@@ -18,9 +18,20 @@ export default function VerifyPage({ token }) {
     (async () => {
       try {
         const res = await fetch(`/api/verify/${encodeURIComponent(token)}`);
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          if (!cancelled) {
+            setError("Doğrulama servisi yanıt vermedi. Lütfen biraz sonra tekrar deneyin.");
+          }
+          return;
+        }
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           if (!cancelled) setError(data.error || "Kayıt bulunamadı");
+          return;
+        }
+        if (!data.member) {
+          if (!cancelled) setError("Üyelik bilgisi alınamadı");
           return;
         }
         if (!cancelled) setMember(data.member);
@@ -44,22 +55,27 @@ export default function VerifyPage({ token }) {
 
   return (
     <div className="min-h-screen bg-surface-100 flex flex-col items-center justify-center p-6">
-      <Logo size={56} variant="tile" className="mb-6" />
-      <div className="w-full max-w-md rounded-2xl border border-ink-100 bg-white shadow-lg p-6">
+      <Logo size={96} variant="tile" withWordmark className="mb-8" />
+      <div className="w-full max-w-md rounded-2xl border border-ink-100 bg-white shadow-lg p-6 sm:p-8">
         {loading ? (
-          <p className="text-center text-ink-500 text-sm">Doğrulanıyor…</p>
+          <div className="flex flex-col items-center gap-3 py-4">
+            <Loader2 className="animate-spin text-brand-600" size={28} />
+            <p className="text-center text-ink-500 text-sm">Doğrulanıyor…</p>
+          </div>
         ) : error ? (
-          <div className="text-center">
-            <AlertCircle className="mx-auto text-danger-500 mb-2" size={32} />
+          <div className="text-center py-2">
+            <AlertCircle className="mx-auto text-danger-500 mb-3" size={36} />
             <p className="font-semibold text-ink-900">{error}</p>
           </div>
         ) : member ? (
           <>
             <div className="flex items-center gap-2 justify-center mb-4">
-              <ShieldCheck className="text-brand-600" size={22} />
-              <p className="yk-eyebrow">{member.chamberName}</p>
+              <ShieldCheck className="text-brand-600 shrink-0" size={22} />
+              <p className="yk-eyebrow text-center">{member.chamberName}</p>
             </div>
-            <h1 className="yk-display text-2xl text-center text-ink-900">{member.company || member.fullName}</h1>
+            <h1 className="yk-display text-2xl sm:text-3xl text-center text-ink-900">
+              {member.company || member.fullName}
+            </h1>
             {member.company && member.fullName ? (
               <p className="text-center text-sm text-ink-600 mt-1">{member.fullName}</p>
             ) : null}
@@ -75,7 +91,9 @@ export default function VerifyPage({ token }) {
               </p>
             ) : null}
           </>
-        ) : null}
+        ) : (
+          <p className="text-center text-ink-500 text-sm py-4">Gösterilecek bilgi yok.</p>
+        )}
       </div>
     </div>
   );
