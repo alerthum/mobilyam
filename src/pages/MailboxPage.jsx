@@ -25,7 +25,7 @@ export default function MailboxPage() {
           <EmptyState
             icon={Mail}
             title="Gönderilmiş mail yok"
-            description="Sözleşmeye çevrilmiş tekliflerden anlaşmalı firmaya m² detayı gönderebilirsiniz."
+            description="Sözleşmeye çevrilmiş tekliflerden anlaşmalı firmaya iş birliği bildirimi gönderebilirsiniz."
           />
         ) : (
           <Card padded={false}>
@@ -48,7 +48,7 @@ export default function MailboxPage() {
                       {item.projectName} · {formatDateTime(item.sentAt)}
                     </p>
                     <p className="text-[11px] text-ink-500 mt-0.5">
-                      {item.summary?.roomCount ?? "—"} oda · {item.summary?.totalM2 ?? "—"}
+                      Toplam {item.summary?.totalM2 ?? "—"}
                     </p>
                   </div>
                   <Badge variant={item.status === "sent" ? "success" : "danger"}>
@@ -84,22 +84,29 @@ function MailDetailModal({ item, onClose }) {
         {item.status === "failed" && item.errorMessage ? (
           <p className="mt-2 text-sm text-danger-600">{item.errorMessage}</p>
         ) : null}
-        <div className="mt-6 space-y-4">
-          {(snap.rooms || []).map((room, idx) => (
-            <div key={idx} className="rounded-xl border border-ink-100 p-4">
-              <p className="font-bold text-ink-900">
-                {room.roomLabel} — {room.totalM2}
-              </p>
-              <ul className="mt-2 space-y-1 text-sm text-ink-700">
-                {(room.lines || []).map((line, i) => (
-                  <li key={i} className="flex justify-between gap-2">
-                    <span>{line.label}</span>
-                    <span className="tabular-nums shrink-0">{line.m2}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div className="mt-6 rounded-xl border border-ink-100 bg-surface-50 p-5 space-y-3 text-sm">
+          <p>
+            <span className="text-ink-500">Toplam m²:</span>{" "}
+            <strong className="text-ink-900">{snap.totalM2 || item.summary?.totalM2 || "—"}</strong>
+          </p>
+          <p>
+            <span className="text-ink-500">Mobilyacı:</span>{" "}
+            <strong>
+              {snap.producerCompany || snap.producerName || "—"}
+            </strong>
+            {snap.producerUsername ? (
+              <span className="text-ink-600"> ({snap.producerUsername})</span>
+            ) : null}
+          </p>
+          {snap.producerPhone ? (
+            <p>
+              <span className="text-ink-500">İletişim:</span>{" "}
+              <strong>{snap.producerPhone}</strong>
+            </p>
+          ) : null}
+          <p className="text-xs text-ink-500 pt-2 border-t border-ink-100">
+            Firmaya kesim listesi ve detaylar için mobilyacı ile iletişime geçmesi istendi.
+          </p>
         </div>
       </div>
     </Modal>

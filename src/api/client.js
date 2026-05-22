@@ -133,12 +133,12 @@ export async function testSmtp(to, smtpSettings) {
   }
 }
 
-export async function sendPartnerMail(quoteId, partnerId, reportSnapshot, pdfBase64 = "") {
+export async function sendPartnerMail(quoteId, partnerId, reportSnapshot) {
   try {
     const res = await fetch("/api/send-partner-mail", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ quoteId, partnerId, reportSnapshot, pdfBase64: pdfBase64 || "" })
+      body: JSON.stringify({ quoteId, partnerId, reportSnapshot })
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {

@@ -2,86 +2,98 @@ const crypto = require("crypto");
 const { getRemoteState, saveRemoteState } = require("./_db");
 const { authenticateRequest, pickChamberBlock } = require("./_auth");
 const { sendMail } = require("./_mail");
-const { getMailLogoDataUris } = require("./_m2MailAssets");
 
 function clone(v) {
   return JSON.parse(JSON.stringify(v || {}));
 }
 
-function buildHtmlFromSnapshot(report) {
-  const esc = (s) =>
-    String(s ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-
-  const logos = getMailLogoDataUris();
-  const headerLogos =
-    logos.mobar || logos.chamber
-      ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
-          <tr>
-            ${logos.mobar ? `<td width="80" align="left"><img src="${logos.mobar}" alt="" width="72" height="72" style="display:block;object-fit:contain;"/></td>` : "<td width=\"80\"></td>"}
-            <td align="center" style="font-size:13px;font-weight:700;color:#334155;text-transform:uppercase;">${esc(report.chamberName)}</td>
-            ${logos.chamber ? `<td width="80" align="right"><img src="${logos.chamber}" alt="" width="72" height="72" style="display:block;object-fit:contain;margin-left:auto;"/></td>` : "<td width=\"80\"></td>"}
-          </tr>
-        </table>`
-      : `<p style="font-size:12px;color:#64748b;text-align:center;">${esc(report.chamberName)}</p>`;
-
-  const roomBlocks = (report.rooms || [])
-    .map((room) => {
-      const qualityLine = room.qualityName
-        ? ` · <span style="color:#475569;">Kalite: ${esc(room.qualityName)}</span>`
-        : "";
-      const rows = (room.lines || [])
-        .map(
-          (line) =>
-            `<tr><td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;">${esc(line.label)}</td>` +
-            `<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap;">${esc(line.m2)}</td>` +
-            `<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:12px;color:#64748b;">${esc(line.detail || line.formula || "")}</td></tr>`
-        )
-        .join("");
-      return `
-        <h3 style="margin:16px 0 8px;font-size:15px;color:#0f172a;">${esc(room.roomLabel)} — ${esc(room.totalM2)}${qualityLine}</h3>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#f1f5f9;">
-            <th style="padding:6px 8px;text-align:left;">Kalem</th>
-            <th style="padding:6px 8px;text-align:right;">Alan</th>
-            <th style="padding:6px 8px;text-align:left;">Detay</th>
-          </tr></thead>
-          <tbody>${rows || `<tr><td colspan="3">—</td></tr>`}</tbody>
-        </table>`;
-    })
-    .join("");
-
-  return `
-    <div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:720px;">
-      ${headerLogos}
-      <h1 style="font-size:20px;text-align:center;margin:0 0 8px;">${esc(report.projectName)} — #${esc(report.quoteNumber)}</h1>
-      <p style="font-size:13px;text-align:center;">
-        <strong>Mobilyacı:</strong> ${esc(report.producerCompany || report.producerName)}<br/>
-        <strong>Tarih:</strong> ${esc(report.contractDate || report.quoteDate || "")}<br/>
-        <strong>Toplam:</strong> ${esc(report.totalM2)} (${report.roomCount} oda)
-      </p>
-      <p style="font-size:12px;color:#64748b;text-align:center;">Yalnızca m² detayları — fiyat bilgisi yoktur. Ekte PDF raporu bulunur.</p>
-      ${roomBlocks}
-    </div>`;
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
-function pdfAttachmentFromBody(pdfBase64, quoteNumber, projectName) {
-  const raw = String(pdfBase64 || "").trim();
-  if (!raw) return [];
-  const safeName = String(projectName || "sozlesme")
-    .replace(/[^\w\-.ğüşıöçĞÜŞİÖÇ ]+/gu, "")
-    .trim()
-    .slice(0, 40);
-  return [
-    {
-      filename: `${safeName || "sozlesme"}-m2-${quoteNumber || "rapor"}.pdf`,
-      content: raw,
-      encoding: "base64",
-      contentType: "application/pdf"
-    }
-  ];
+function buildPartnerInviteMail(snap, partner) {
+  const producerLine = [
+    snap.producerCompany,
+    snap.producerName !== snap.producerCompany ? snap.producerName : ""
+  ]
+    .filter(Boolean)
+    .join(" — ");
+
+  const usernameLine = snap.producerUsername
+    ? `<tr><td style="padding:8px 0;color:#64748b;width:120px;">Kullanıcı adı</td><td style="padding:8px 0;font-weight:600;">${esc(snap.producerUsername)}</td></tr>`
+    : "";
+
+  const contactRows = [
+    snap.producerCompany
+      ? `<tr><td style="padding:6px 0;color:#64748b;">Firma</td><td style="padding:6px 0;">${esc(snap.producerCompany)}</td></tr>`
+      : "",
+    snap.producerName
+      ? `<tr><td style="padding:6px 0;color:#64748b;">Yetkili</td><td style="padding:6px 0;">${esc(snap.producerName)}</td></tr>`
+      : "",
+    snap.producerPhone
+      ? `<tr><td style="padding:6px 0;color:#64748b;">Telefon</td><td style="padding:6px 0;font-weight:700;color:#0c4a6e;">${esc(snap.producerPhone)}</td></tr>`
+      : "",
+    snap.producerAddress
+      ? `<tr><td style="padding:6px 0;color:#64748b;">Adres</td><td style="padding:6px 0;">${esc(snap.producerAddress)}</td></tr>`
+      : "",
+    snap.producerCity
+      ? `<tr><td style="padding:6px 0;color:#64748b;">İl / ilçe</td><td style="padding:6px 0;">${esc(snap.producerCity)}</td></tr>`
+      : ""
+  ].join("");
+
+  const html = `
+    <div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:560px;line-height:1.55;">
+      <p style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin:0 0 12px;">
+        ${esc(snap.chamberName)}
+      </p>
+      <p style="font-size:15px;margin:0 0 16px;">Sayın <strong>${esc(partner.company || partner.fullName)}</strong>,</p>
+      <p style="font-size:14px;margin:0 0 14px;">
+        <strong>${esc(producerLine || snap.producerName || "Mobilyacı üye")}</strong>
+        ${snap.producerUsername ? `(<em>kullanıcı adı: ${esc(snap.producerUsername)}</em>)` : ""},
+        <strong>#${esc(snap.quoteNumber)}</strong> numaralı
+        <strong>«${esc(snap.projectName)}»</strong> sözleşmesine ait işlerde
+        toplam <strong style="color:#0369a1;">${esc(snap.totalM2)}</strong> ile sizinle çalışmak istemektedir.
+      </p>
+      <p style="font-size:14px;margin:0 0 18px;">
+        Lütfen <strong>kesim listesi</strong> ve diğer detaylar için
+        <strong>${esc(snap.contactLabel)}</strong> ile iletişime geçiniz.
+      </p>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;">
+        <p style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 10px;">
+          İlgili mobilyacı
+        </p>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          ${usernameLine}
+          ${contactRows}
+        </table>
+      </div>
+      <p style="font-size:12px;color:#94a3b8;margin:20px 0 0;">MOBAR 2026 — Resmi teklif sistemi</p>
+    </div>`;
+
+  const text = [
+    `Sayın ${partner.company || partner.fullName},`,
+    "",
+    `${producerLine || snap.producerName}${snap.producerUsername ? ` (kullanıcı adı: ${snap.producerUsername})` : ""},`,
+    `#${snap.quoteNumber} numaralı «${snap.projectName}» sözleşmesine ait işlerde toplam ${snap.totalM2} ile sizinle çalışmak istemektedir.`,
+    "",
+    `Kesim listesi ve diğer detaylar için lütfen ${snap.contactLabel} ile iletişime geçiniz.`,
+    "",
+    "İlgili mobilyacı:",
+    snap.producerCompany ? `Firma: ${snap.producerCompany}` : "",
+    snap.producerName ? `Yetkili: ${snap.producerName}` : "",
+    snap.producerPhone ? `Telefon: ${snap.producerPhone}` : "",
+    snap.producerAddress ? `Adres: ${snap.producerAddress}` : "",
+    snap.producerCity ? `İl/ilçe: ${snap.producerCity}` : "",
+    "",
+    snap.chamberName
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return { html, text };
 }
 
 module.exports = async function handler(req, res) {
@@ -95,7 +107,6 @@ module.exports = async function handler(req, res) {
     const quoteId = String(req.body?.quoteId || "").trim();
     const partnerId = String(req.body?.partnerId || "").trim();
     const reportSnapshot = req.body?.reportSnapshot;
-    const pdfBase64 = req.body?.pdfBase64;
     if (!quoteId || !partnerId || !reportSnapshot) {
       res.status(400).json({ error: "quoteId, partnerId ve reportSnapshot zorunludur" });
       return;
@@ -131,8 +142,9 @@ module.exports = async function handler(req, res) {
     }
 
     const smtp = block?.smtpSettings;
-    const subject = `${reportSnapshot.projectName || "Proje"} — Sözleşme m² detay (#${quote.number})`;
-    const html = buildHtmlFromSnapshot(reportSnapshot);
+    const producerLabel = reportSnapshot.producerCompany || reportSnapshot.producerName || "Mobilyacı";
+    const subject = `${producerLabel} — ${reportSnapshot.totalM2 || ""} — #${quote.number} iş birliği`;
+    const { html, text } = buildPartnerInviteMail(reportSnapshot, partner);
 
     const outboxItem = {
       id: `MAIL-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`,
@@ -148,7 +160,6 @@ module.exports = async function handler(req, res) {
       status: "sent",
       errorMessage: "",
       summary: {
-        roomCount: reportSnapshot.roomCount || (reportSnapshot.rooms || []).length,
         totalM2: reportSnapshot.totalM2 || "0"
       },
       reportSnapshot: clone(reportSnapshot)
@@ -159,12 +170,7 @@ module.exports = async function handler(req, res) {
         to: partner.email,
         subject,
         html,
-        text: `${subject}\n\nToplam ${outboxItem.summary.totalM2} — ${outboxItem.summary.roomCount} oda.\n\nEkte PDF m² raporu.`,
-        attachments: pdfAttachmentFromBody(
-          pdfBase64,
-          quote.number,
-          reportSnapshot.projectName
-        )
+        text
       });
     } catch (mailErr) {
       outboxItem.status = "failed";

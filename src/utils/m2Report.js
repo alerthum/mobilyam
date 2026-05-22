@@ -77,3 +77,31 @@ export function buildQuoteM2Report(quote, qualities, countertopCatalog, context 
     rooms
   };
 }
+
+/** Anlaşmalı firmaya giden kısa davet maili için özet (yalnızca toplam m² + iletişim). */
+export function buildPartnerInviteSnapshot(quote, qualities, countertopCatalog, context = {}, user = {}) {
+  const calc = calculateQuoteTotals(quote, qualities || [], countertopCatalog || []);
+  const totalM2Num = (calc.rooms || []).reduce(
+    (s, r) => s + (Number(r.price.panelEquivalentM2) || 0),
+    0
+  );
+  const contactName = String(user.fullName || "").trim();
+  const contactPhone = String(user.phone || "").trim();
+  const contactLabel = contactPhone
+    ? contactPhone
+    : contactName || String(user.company || "").trim() || "mobilyacı";
+
+  return {
+    projectName: quote.projectName || "Proje",
+    quoteNumber: quote.number,
+    totalM2: fmtM2(totalM2Num),
+    chamberName: context.chamberName || "",
+    producerUsername: user.username || "",
+    producerName: user.fullName || "",
+    producerCompany: user.company || "",
+    producerPhone: user.phone || "",
+    producerAddress: user.addressLine || "",
+    producerCity: [user.cityProvince, user.district].filter(Boolean).join(" / "),
+    contactLabel
+  };
+}
