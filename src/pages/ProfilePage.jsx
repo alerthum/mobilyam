@@ -5,6 +5,7 @@ import Card, { CardHeader } from "../components/ui/Card.jsx";
 import KpiCard from "../components/ui/KpiCard.jsx";
 import Button from "../components/ui/Button.jsx";
 import Logo from "../components/ui/Logo.jsx";
+import MemberQrButton from "../components/member/MemberQrButton.jsx";
 import { useApp, useCurrentUser } from "../context/AppContext.jsx";
 import { useConfirm, useToast } from "../context/ModalContext.jsx";
 import { calculateQuoteTotals } from "../utils/calculations.js";
@@ -65,7 +66,7 @@ export default function ProfilePage() {
       <div className="px-4 sm:px-6 py-5 max-w-3xl mx-auto space-y-5">
         <div className="yk-card-dark p-5 flex items-center gap-4">
           <Logo size={64} variant="tile-dark" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="yk-display text-2xl truncate">
               {user?.fullName || "—"}
             </h2>
@@ -76,6 +77,12 @@ export default function ProfilePage() {
               {ROLE_LABEL[user?.role] || user?.role}
             </span>
           </div>
+          {user?.verifyToken ? (
+            <div className="shrink-0 flex flex-col items-center gap-1">
+              <MemberQrButton user={user} size="sm" />
+              <span className="text-[10px] text-white/50 font-medium">Üyelik QR</span>
+            </div>
+          ) : null}
         </div>
 
         {user?.role === "producer" && (

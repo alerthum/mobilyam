@@ -16,39 +16,41 @@ function licenseBadge(user) {
 
 export default function MemberQrButton({ user, size = "sm" }) {
   const [open, setOpen] = useState(false);
-  const [dataUrl, setDataUrl] = useState("");
+  const [thumbUrl, setThumbUrl] = useState("");
+  const [modalUrl, setModalUrl] = useState("");
 
   const url = memberVerifyUrl(user?.verifyToken);
   const badge = licenseBadge(user);
   const isSmall = size === "sm";
 
   useEffect(() => {
-    if (!open || !url) return;
+    if (!isSmall || !url) return;
     let cancelled = false;
-    QRCode.toDataURL(url, { width: 280, margin: 2 })
+    QRCode.toDataURL(url, { width: 72, margin: 1 })
       .then((d) => {
-        if (!cancelled) setDataUrl(d);
-      })
-      .catch(() => {
-        if (!cancelled) setDataUrl("");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, url]);
-
-  useEffect(() => {
-    if (!isSmall || !user?.verifyToken) return;
-    let cancelled = false;
-    QRCode.toDataURL(url, { width: 64, margin: 1 })
-      .then((d) => {
-        if (!cancelled) setDataUrl(d);
+        if (!cancelled) setThumbUrl(d);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [isSmall, url, user?.verifyToken]);
+  }, [isSmall, url]);
+
+  useEffect(() => {
+    if (!open || !url) return;
+    let cancelled = false;
+    setModalUrl("");
+    QRCode.toDataURL(url, { width: 280, margin: 2 })
+      .then((d) => {
+        if (!cancelled) setModalUrl(d);
+      })
+      .catch(() => {
+        if (!cancelled) setModalUrl("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, url]);
 
   if (!user?.verifyToken) return null;
 
@@ -59,16 +61,16 @@ export default function MemberQrButton({ user, size = "sm" }) {
         onClick={() => setOpen(true)}
         className={
           isSmall
-            ? "inline-flex items-center justify-center rounded-lg border border-ink-200 bg-white p-1 hover:bg-ink-50 transition shrink-0"
-            : "inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm font-semibold text-ink-800 hover:bg-ink-50"
+            ? "inline-flex items-center justify-center rounded-lg border border-ink-200 bg-white p-1.5 hover:bg-ink-50 transition shrink-0 touch-manipulation"
+            : "inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2 text-sm font-semibold text-ink-800 hover:bg-ink-50 touch-manipulation"
         }
         title="Üyelik QR"
         aria-label="Üyelik QR kodu"
       >
-        {isSmall && dataUrl ? (
-          <img src={dataUrl} alt="" className="w-8 h-8 rounded" />
+        {isSmall && thumbUrl ? (
+          <img src={thumbUrl} alt="" className="w-9 h-9 rounded" />
         ) : (
-          <QrCode size={isSmall ? 16 : 18} />
+          <QrCode size={isSmall ? 20 : 18} />
         )}
         {!isSmall ? <span>QR</span> : null}
       </button>
@@ -80,14 +82,14 @@ export default function MemberQrButton({ user, size = "sm" }) {
             {user.company || user.fullName}
           </h3>
           <div className="mt-4 flex justify-center">
-            {dataUrl ? (
+            {modalUrl ? (
               <img
-                src={dataUrl}
+                src={modalUrl}
                 alt="QR kod"
-                className="w-[min(260px,72vw)] h-[min(260px,72vw)] max-w-full rounded-xl border border-ink-100"
+                className="w-[min(280px,78vw)] h-[min(280px,78vw)] max-w-full rounded-xl border border-ink-100"
               />
             ) : (
-              <div className="w-[min(260px,72vw)] aspect-square rounded-xl bg-ink-50 animate-pulse" />
+              <div className="w-[min(280px,78vw)] aspect-square max-w-full rounded-xl bg-ink-50 animate-pulse" />
             )}
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
@@ -96,7 +98,7 @@ export default function MemberQrButton({ user, size = "sm" }) {
               <span className="text-xs text-ink-500">Lisans bitiş: {formatDate(user.licenseEndDate)}</span>
             ) : null}
           </div>
-          <p className="mt-3 text-[11px] text-ink-500 break-all">{url}</p>
+          <p className="mt-3 text-[11px] text-ink-500 break-all px-1">{url}</p>
         </div>
       </Modal>
     </>

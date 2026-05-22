@@ -25,10 +25,9 @@ export default function TopBar({ title, subtitle, action }) {
             </h2>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-2">
-            {user?.verifyToken ? <MemberQrButton user={user} size="sm" /> : null}
-            <div className="flex flex-col items-end">
+        <div className="flex items-center gap-2 shrink-0">
+          {user?.verifyToken ? <MemberQrButton user={user} size="sm" /> : null}
+          <div className="hidden sm:flex flex-col items-end min-w-0">
             <span className="text-[11px] font-semibold text-ink-700 truncate max-w-[160px]">
               {user?.fullName}
             </span>
@@ -54,7 +53,6 @@ export default function TopBar({ title, subtitle, action }) {
                 )}
               </span>
             )}
-            </div>
           </div>
           {action}
         </div>
