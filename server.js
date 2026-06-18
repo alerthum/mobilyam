@@ -11,6 +11,8 @@ const apiLoginHandler = require("./api/login");
 const apiVerifyHandler = require("./api/verify");
 const apiTestSmtpHandler = require("./api/test-smtp");
 const apiSendPartnerMailHandler = require("./api/send-partner-mail");
+const apiCutlistsHandler = require("./api/cutlists");
+const apiPurgeCutlistsHandler = require("./api/cron/purge-cutlists");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -68,6 +70,15 @@ function resolveFile(urlPath) {
   return path.join(STATIC_ROOT, "index.html");
 }
 
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -112,19 +123,33 @@ http
       req.url?.startsWith("/api/login") ||
       req.url?.startsWith("/api/verify") ||
       req.url?.startsWith("/api/test-smtp") ||
-      req.url?.startsWith("/api/send-partner-mail")
+      req.url?.startsWith("/api/send-partner-mail") ||
+      req.url?.startsWith("/api/cutlists") ||
+      req.url?.startsWith("/api/cron/purge-cutlists")
     ) {
       try {
         decorateResponse(res);
-        req.body = req.method === "POST" ? await parseJsonBody(req) : {};
-        if (req.url?.startsWith("/api/login")) await apiLoginHandler(req, res);
-        else if (req.url?.startsWith("/api/verify")) await apiVerifyHandler(req, res);
-        else if (req.url?.startsWith("/api/test-smtp")) await apiTestSmtpHandler(req, res);
-        else if (req.url?.startsWith("/api/send-partner-mail")) await apiSendPartnerMailHandler(req, res);
-        else await apiStateHandler(req, res);
+        const isCutlistUpload = req.url?.startsWith("/api/cutlists") && req.method === "POST";
+        if (isCutlistUpload) {
+          req.body = await readRawBody(req);
+          await apiCutlistsHandler(req, res);
+        } else if (req.url?.startsWith("/api/cron/purge-cutlists")) {
+          req.body = {};
+          await apiPurgeCutlistsHandler(req, res);
+        } else if (req.url?.startsWith("/api/cutlists")) {
+          req.body = {};
+          await apiCutlistsHandler(req, res);
+        } else {
+          req.body = req.method === "POST" ? await parseJsonBody(req) : {};
+          if (req.url?.startsWith("/api/login")) await apiLoginHandler(req, res);
+          else if (req.url?.startsWith("/api/verify")) await apiVerifyHandler(req, res);
+          else if (req.url?.startsWith("/api/test-smtp")) await apiTestSmtpHandler(req, res);
+          else if (req.url?.startsWith("/api/send-partner-mail")) await apiSendPartnerMailHandler(req, res);
+          else await apiStateHandler(req, res);
+        }
       } catch (error) {
         res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-        res.end(JSON.stringify({ error: "Geçersiz JSON gövdesi", detail: error.message }));
+        res.end(JSON.stringify({ error: "Geçersiz istek gövdesi", detail: error.message }));
       }
       return;
     }

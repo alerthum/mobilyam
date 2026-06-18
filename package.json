@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "backup:state": "node scripts/backup-app-state.js",
     "migrate:state": "node scripts/migrate-from-json.js",
-    "export:blob": "node scripts/export-blob-state.js"
+    "export:blob": "node scripts/export-blob-state.js",
+    "purge:cutlists": "node scripts/purge-cutlists.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -24,13 +25,11 @@
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^1.11.0",
     "nodemailer": "^8.0.7",
+    "@vercel/blob": "^2.3.3",
     "qrcode": "^1.5.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwindcss": "^4.2.4",
     "vite": "^8.0.10"
-  },
-  "devDependencies": {
-    "@vercel/blob": "^2.3.3"
   }
 }

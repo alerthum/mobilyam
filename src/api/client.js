@@ -154,6 +154,66 @@ export async function sendPartnerMail(quoteId, partnerId, reportSnapshot) {
   }
 }
 
+export async function uploadCutList(quoteId, file) {
+  try {
+    const params = new URLSearchParams({
+      quoteId,
+      fileName: file.name || "kesim-listesi"
+    });
+    const res = await fetch(`/api/cutlists?${params}`, {
+      method: "POST",
+      headers: {
+        ...authHeaders(),
+        "Content-Type": file.type || "application/octet-stream"
+      },
+      body: file
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: payload?.error || "Yükleme başarısız" };
+    }
+    return { ok: true, item: payload.item };
+  } catch {
+    return { ok: false, error: "Sunucuya ulaşılamadı" };
+  }
+}
+
+export async function deleteCutList(quoteId, cutListId) {
+  try {
+    const params = new URLSearchParams({ quoteId, cutListId });
+    const res = await fetch(`/api/cutlists?${params}`, {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: payload?.error || "Silinemedi" };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Sunucuya ulaşılamadı" };
+  }
+}
+
+export async function downloadCutList(quoteId, cutListId, fileName) {
+  const params = new URLSearchParams({ quoteId, cutListId, action: "download" });
+  const res = await fetch(`/api/cutlists?${params}`, { headers: authHeaders() });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload?.error || "İndirilemedi");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName || "kesim-listesi";
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function saveState(remoteState) {
   const token = getSessionToken();
   if (!token) return { ok: false, storageMode: "locked", unauthorized: true };

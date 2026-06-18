@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { migrateInboundState } = require("./stateMigration");
+const { sanitizeQuotesCutListsForClient, stripCutListsFromQuotes } = require("./_cutlist");
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -347,9 +348,13 @@ function filterStateForUser(remoteState, user) {
           item.role !== "system_admin" &&
           item.chamberId === cid
       ),
-      quotes: (baseState.quotes || []).filter((quote) =>
-        quoteBelongsToChamberScope(quote, cid, baseState.users)
-      )
+      quotes: (baseState.quotes || [])
+        .filter((quote) => quoteBelongsToChamberScope(quote, cid, baseState.users))
+        .map((quote) => {
+          const next = { ...quote };
+          delete next.cutLists;
+          return next;
+        })
     };
   }
 
@@ -363,8 +368,10 @@ function filterStateForUser(remoteState, user) {
     agreedPartners,
     partnerMailOutbox,
     users: (baseState.users || []).filter((item) => item.id === user.id),
-    quotes: (baseState.quotes || []).filter(
-      (quote) => quote.ownerUserId === user.id && quote.chamberId === cid
+    quotes: sanitizeQuotesCutListsForClient(
+      (baseState.quotes || []).filter(
+        (quote) => quote.ownerUserId === user.id && quote.chamberId === cid
+      )
     )
   };
 }
@@ -507,10 +514,19 @@ function mergeStateForUser(existingState, incomingState, user) {
    * - Gelen payload'da quotes boşsa (ör. stale/bozuk istemci state), mevcut owner tekliflerini silme.
    * - Böylece teklifler "bir anda sıfırlandı" vakasını engelleriz.
    */
-  const nextOwnerQuotes =
+  const nextOwnerQuotesRaw =
     incomingOwnerQuotes.length === 0 && currentOwnerQuotes.length > 0
       ? currentOwnerQuotes
       : incomingOwnerQuotes;
+
+  const nextOwnerQuotes = nextOwnerQuotesRaw.map((incoming) => {
+    const existing = currentOwnerQuotes.find((q) => q.id === incoming.id);
+    if (!existing) return incoming;
+    return {
+      ...incoming,
+      cutLists: Array.isArray(existing.cutLists) ? existing.cutLists : incoming.cutLists || []
+    };
+  });
 
   nextState.quotes = [...otherOwnersQuotes, ...nextOwnerQuotes];
 

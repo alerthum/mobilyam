@@ -47,6 +47,7 @@ import { calculateQuoteTotals } from "../utils/calculations.js";
 import { formatCurrency, formatNumber } from "../utils/format.js";
 import { isProjectActive, projectStatusLabel } from "../utils/projectLifecycle.js";
 import SendPartnerMailModal from "../components/quote/SendPartnerMailModal.jsx";
+import CutListPanel from "../components/quote/CutListPanel.jsx";
 
 export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
   const { remote, saveNow, saveStatus, commit } = useApp();
@@ -70,6 +71,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
     rooms: true,
     services: false,
     discount: false,
+    cutlists: true,
     flow: false
   });
   const [partnerMailOpen, setPartnerMailOpen] = useState(false);
@@ -114,6 +116,7 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
       rooms: true,
       services: false,
       discount: false,
+      cutlists: Boolean(quote?.cutLists?.length),
       flow: false
     });
   }, [quoteId]);
@@ -738,6 +741,26 @@ export default function QuoteEditorPage({ projectId, quoteId, onBack }) {
             </Button>
           </div>
             </>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Kesim listeleri"
+            subtitle="Cut List Optimizer PDF / resim — 30 gün saklanır"
+            action={
+              <IconButton
+                icon={sectionsOpen.cutlists ? ChevronUp : ChevronDown}
+                variant="ghost"
+                ariaLabel="Kesim listeleri aç/kapat"
+                onClick={() => toggleSection("cutlists")}
+              />
+            }
+          />
+          {sectionsOpen.cutlists && (
+            <div className="mt-3">
+              <CutListPanel quoteId={quoteId} items={quote.cutLists || []} />
+            </div>
           )}
         </Card>
 

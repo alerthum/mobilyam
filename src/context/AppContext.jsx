@@ -161,6 +161,17 @@ export function AppProvider({ children }) {
     window.location.reload();
   }, []);
 
+  const refreshRemote = useCallback(async () => {
+    const result = await api.loadState();
+    if (result.data && result.auth) {
+      setRemote(result.data);
+      lastSavedRef.current = result.data;
+      setAuth(result.auth);
+      setStorageMode(result.storageMode);
+    }
+    return result;
+  }, []);
+
   const value = useMemo(
     () => ({
       remote,
@@ -172,7 +183,8 @@ export function AppProvider({ children }) {
       commit,
       saveNow,
       login,
-      logout
+      logout,
+      refreshRemote
     }),
     [
       remote,
@@ -184,7 +196,8 @@ export function AppProvider({ children }) {
       commit,
       saveNow,
       login,
-      logout
+      logout,
+      refreshRemote
     ]
   );
 
