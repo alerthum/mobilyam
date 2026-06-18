@@ -1,8 +1,9 @@
 import React, { useRef, useState } from "react";
-import { FileUp, FileDown, Trash2, Scissors, Loader2, Clock } from "lucide-react";
+import { FileUp, FileDown, Trash2, Scissors, Loader2, Clock, Eye } from "lucide-react";
 import Button from "../ui/Button.jsx";
 import IconButton from "../ui/IconButton.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
+import CutListPreviewModal from "./CutListPreviewModal.jsx";
 import { uploadCutList, deleteCutList, downloadCutList } from "../../api/client.js";
 import { useApp } from "../../context/AppContext.jsx";
 import { useConfirm, useToast } from "../../context/ModalContext.jsx";
@@ -41,6 +42,7 @@ export default function CutListPanel({ quoteId, items = [], compact = false }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState("");
+  const [previewItem, setPreviewItem] = useState(null);
 
   async function handlePickFile(e) {
     const file = e.target.files?.[0];
@@ -90,6 +92,12 @@ export default function CutListPanel({ quoteId, items = [], compact = false }) {
 
   return (
     <div className={compact ? "space-y-3" : "space-y-4"}>
+      <CutListPreviewModal
+        open={Boolean(previewItem)}
+        onClose={() => setPreviewItem(null)}
+        quoteId={quoteId}
+        item={previewItem}
+      />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-ink-500 leading-relaxed">
           Cut List Optimizer veya benzeri programdan PDF / resim yükleyin. Dosyalar{" "}
@@ -133,7 +141,16 @@ export default function CutListPanel({ quoteId, items = [], compact = false }) {
                 <Scissors size={16} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-ink-900 truncate">{item.fileName}</p>
+                <button
+                  type="button"
+                  className="text-left w-full group"
+                  onClick={() => setPreviewItem(item)}
+                  title="Görüntüle"
+                >
+                  <p className="text-sm font-semibold text-ink-900 truncate group-hover:text-brand-600 transition">
+                    {item.fileName}
+                  </p>
+                </button>
                 <p className="text-[11px] text-ink-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span>{formatBytes(item.sizeBytes)}</span>
                   <span className="inline-flex items-center gap-1">
@@ -143,6 +160,13 @@ export default function CutListPanel({ quoteId, items = [], compact = false }) {
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <IconButton
+                  icon={Eye}
+                  variant="ghost"
+                  ariaLabel="Görüntüle"
+                  disabled={busyId === item.id}
+                  onClick={() => setPreviewItem(item)}
+                />
                 <IconButton
                   icon={busyId === item.id ? Loader2 : FileDown}
                   variant="ghost"

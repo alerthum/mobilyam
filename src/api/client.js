@@ -195,14 +195,21 @@ export async function deleteCutList(quoteId, cutListId) {
   }
 }
 
-export async function downloadCutList(quoteId, cutListId, fileName) {
+export async function fetchCutListBlob(quoteId, cutListId) {
   const params = new URLSearchParams({ quoteId, cutListId, action: "download" });
   const res = await fetch(`/api/cutlists?${params}`, { headers: authHeaders() });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
-    throw new Error(payload?.error || "İndirilemedi");
+    throw new Error(payload?.error || "Dosya alınamadı");
   }
   const blob = await res.blob();
+  const mimeType =
+    res.headers.get("content-type")?.split(";")[0]?.trim() || blob.type || "application/octet-stream";
+  return { blob, mimeType };
+}
+
+export async function downloadCutList(quoteId, cutListId, fileName) {
+  const { blob } = await fetchCutListBlob(quoteId, cutListId);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
