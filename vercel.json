@@ -12,5 +12,10 @@
       "path": "/api/cron/purge-cutlists",
       "schedule": "0 3 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/cutlists.js": {
+      "maxDuration": 30
+    }
+  }
 }

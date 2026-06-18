@@ -18,14 +18,26 @@ const storage = require("./_cutlistStorage");
 
 async function readRawBody(req) {
   if (req.body && Buffer.isBuffer(req.body)) return req.body;
+  if (typeof req.body === "string" && req.body.length) {
+    return Buffer.from(req.body, "binary");
+  }
+
+  const fromStream = await new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+  if (fromStream.length) return fromStream;
+
   if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
-    return Buffer.alloc(0);
+    const keys = Object.keys(req.body);
+    if (keys.length === 0) return Buffer.alloc(0);
   }
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
+
+  return Buffer.alloc(0);
 }
 
 function parseUrl(req) {
@@ -181,6 +193,14 @@ module.exports = async function handler(req, res) {
     res.setHeader("Allow", "GET, POST, DELETE");
     res.status(405).json({ error: "Desteklenmeyen metod" });
   } catch (error) {
+    console.error("[cutlist] API hatası:", error.message);
     res.status(500).json({ error: "Sunucu hatası", detail: error.message });
+  }
+};
+
+/** Vercel: ham dosya gövdesi için body parser kapalı */
+module.exports.config = {
+  api: {
+    bodyParser: false
   }
 };

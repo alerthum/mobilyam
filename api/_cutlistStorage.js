@@ -7,6 +7,10 @@ function useBlob() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
+function isVercelRuntime() {
+  return Boolean(process.env.VERCEL);
+}
+
 function localFilePath(storageKey) {
   const normalized = String(storageKey || "").replace(/\\/g, "/");
   const parts = normalized.split("/").filter(Boolean);
@@ -99,6 +103,11 @@ async function removeBlob(meta) {
 
 async function putFile(storageKey, buffer, contentType) {
   if (useBlob()) return putBlob(storageKey, buffer, contentType);
+  if (isVercelRuntime()) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN Vercel ortam değişkenlerinde tanımlı değil. Settings → Environment Variables → Production."
+    );
+  }
   return putLocal(storageKey, buffer);
 }
 
@@ -125,6 +134,7 @@ async function removeFile(meta) {
 
 module.exports = {
   useBlob,
+  isVercelRuntime,
   putFile,
   getFileBuffer,
   removeFile
