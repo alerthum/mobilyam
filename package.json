@@ -13,7 +13,8 @@
     "backup:state": "node scripts/backup-app-state.js",
     "migrate:state": "node scripts/migrate-from-json.js",
     "export:blob": "node scripts/export-blob-state.js",
-    "purge:cutlists": "node scripts/purge-cutlists.mjs"
+    "purge:cutlists": "node scripts/purge-cutlists.mjs",
+    "test:cutlist": "node scripts/test-cutlist-optimizer.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

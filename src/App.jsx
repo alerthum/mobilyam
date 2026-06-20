@@ -11,7 +11,7 @@ import UsersPage from "./pages/UsersPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import ProducerSummaryPage from "./pages/ProducerSummaryPage.jsx";
 import QuoteEditorPage from "./pages/QuoteEditorPage.jsx";
-import CutListsPage from "./pages/CutListsPage.jsx";
+import CutlistOptimizerPage from "./pages/CutlistOptimizerPage.jsx";
 import MailboxPage from "./pages/MailboxPage.jsx";
 import VerifyPage from "./pages/VerifyPage.jsx";
 import AppShell from "./components/layout/AppShell.jsx";
@@ -119,7 +119,7 @@ function Router() {
         content = <ContractsPage onOpenContract={openQuote} />;
         break;
       case "cutlists":
-        content = <CutListsPage onOpenQuote={openQuote} />;
+        content = <CutlistOptimizerPage />;
         break;
       case "mailbox":
         content = <MailboxPage />;
