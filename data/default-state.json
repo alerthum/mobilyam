@@ -110,8 +110,8 @@
     {
       "id": "USR-002",
       "fullName": "Yokuş Mobilya",
-      "username": "mobilyaci",
-      "password": "mob2026",
+      "username": "demo",
+      "password": "demo",
       "role": "producer",
       "chamberId": "CH-DEFAULT",
       "company": "Yokuş Mobilya",

@@ -7,11 +7,11 @@ import Field from "../components/inputs/Field.jsx";
 import Button from "../components/ui/Button.jsx";
 import Logo from "../components/ui/Logo.jsx";
 
-const DEMO_USERS = [
-  { username: "Admin", password: "Admin", label: "Sistem Admin" },
-  { username: "oda", password: "oda2026", label: "Oda Yönetimi" },
-  { username: "mobilyaci", password: "mob2026", label: "Mobilyacı" }
-];
+const DEMO_PRODUCER = {
+  username: "demo",
+  password: "demo",
+  label: "Mobilyacı"
+};
 
 export default function LoginPage() {
   const { login } = useApp();
@@ -56,7 +56,7 @@ export default function LoginPage() {
             <TextInput
               value={username}
               onChange={setUsername}
-              placeholder="ör. mobilyaci"
+              placeholder="ör. demo"
               autoComplete="username"
             />
           </Field>
@@ -84,19 +84,14 @@ export default function LoginPage() {
 
         <div className="mt-6 yk-card p-5">
           <p className="yk-eyebrow mb-2">Hızlı demo girişi</p>
-          <div className="grid sm:grid-cols-3 gap-2">
-            {DEMO_USERS.map((d) => (
-              <button
-                key={d.username}
-                type="button"
-                onClick={() => submit(d.username, d.password)}
-                className="yk-btn-soft text-xs"
-                disabled={busy}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => submit(DEMO_PRODUCER.username, DEMO_PRODUCER.password)}
+            className="yk-btn-soft w-full text-sm"
+            disabled={busy}
+          >
+            {busy ? "Giriş yapılıyor…" : DEMO_PRODUCER.label}
+          </button>
         </div>
       </div>
     </div>
