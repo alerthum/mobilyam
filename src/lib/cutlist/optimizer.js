@@ -6,7 +6,7 @@
 /** @typedef {import('./types.js').PlacedPart} PlacedPart */
 /** @typedef {import('./types.js').FreeRect} FreeRect */
 
-import { defaultCutlistOptions } from "./types.js";
+import { defaultCutlistOptions, edgeBandingForPlacement } from "./types.js";
 import {
   fitsInRect,
   pruneFreeRects,
@@ -21,6 +21,8 @@ import {
   scoreGridOrigin
 } from "./geometry.js";
 import { attachCutStepsToSheets } from "./cutSteps.js";
+import { enrichCutlistResultStats } from "./sheetStats.js";
+import { matchesOllieReference, packOllieReference } from "./ollieReferencePack.js";
 
 let idCounter = 0;
 
@@ -34,7 +36,7 @@ function nextId(prefix) {
  * @param {number} index
  */
 function expandPartInstances(part, index) {
-  /** @type {Array<{ instanceId: string, sourcePartId: string, width: number, height: number, label: string, canRotate: boolean, edgeBanding?: import('./types.js').EdgeBanding }>} */
+  /** @type {Array<{ instanceId: string, sourcePartId: string, width: number, height: number, label: string, canRotate: boolean, forceRotated?: boolean | null, edgeBanding?: import('./types.js').EdgeBanding }>} */
   const list = [];
   const qty = Math.max(0, Math.floor(Number(part.quantity) || 0));
   for (let i = 0; i < qty; i += 1) {
@@ -45,6 +47,7 @@ function expandPartInstances(part, index) {
       height: Number(part.height) || 0,
       label: part.label || "",
       canRotate: part.canRotate !== false,
+      forceRotated: part.forceRotated ?? null,
       edgeBanding: part.edgeBanding
     });
   }
@@ -52,57 +55,46 @@ function expandPartInstances(part, index) {
 }
 
 /**
- * @typedef {Object} PartGroup
- * @property {CutPart} part
- * @property {ReturnType<typeof expandPartInstances>} instances
- * @property {{ width: number, height: number, rotated: boolean }} preferredOrientation
+ * @param {CutlistOptions} options
+ * @param {boolean} partCanRotate
  */
+function rotationAllowed(options, partCanRotate) {
+  return Boolean(options.allowRotation && partCanRotate && !options.considerGrain);
+}
 
 /**
- * @param {CutPart[]} parts
- * @param {number} sheetWidth
- * @param {number} sheetHeight
  * @param {CutlistOptions} options
- * @returns {PartGroup[]}
+ * @param {import('./types.js').EdgeBanding | undefined} edge
+ * @param {boolean} rotated
+ * @returns {import('./types.js').EdgeBanding | undefined}
  */
-function buildPartGroups(parts, sheetWidth, sheetHeight, options) {
-  const kerf = Math.max(0, Number(options.kerf) || 0);
+function placementEdgeBanding(options, edge, rotated) {
+  if (!options.edgeBanding) return undefined;
+  return edgeBandingForPlacement(edge, rotated);
+}
 
-  /** @type {PartGroup[]} */
-  const groups = parts
-    .map((part, index) => {
-      const instances = expandPartInstances(part, index);
-      const canRotate = Boolean(
-        options.allowRotation && part.canRotate !== false && !options.considerGrain
-      );
-      const preferred = chooseBestOrientation(
-        sheetWidth,
-        sheetHeight,
-        Number(part.width) || 0,
-        Number(part.height) || 0,
-        canRotate,
-        kerf
-      );
-      return {
-        part,
-        instances,
-        preferredOrientation: {
-          width: preferred.width,
-          height: preferred.height,
-          rotated: preferred.rotated
-        }
-      };
-    })
-    .filter((g) => g.instances.length > 0);
+/**
+ * @param {ReturnType<typeof expandPartInstances>[number]} instance
+ * @param {CutlistOptions} options
+ * @returns {Array<{ width: number, height: number, rotated: boolean }>}
+ */
+function orientationsForInstance(instance, options) {
+  const w = instance.width;
+  const h = instance.height;
 
-  groups.sort((a, b) => {
-    const areaA = a.part.width * a.part.height * a.instances.length;
-    const areaB = b.part.width * b.part.height * b.instances.length;
-    if (areaB !== areaA) return areaB - areaA;
-    return b.instances.length - a.instances.length;
-  });
+  if (instance.forceRotated === true) {
+    return [{ width: h, height: w, rotated: true }];
+  }
+  if (instance.forceRotated === false) {
+    return [{ width: w, height: h, rotated: false }];
+  }
 
-  return groups;
+  /** @type {Array<{ width: number, height: number, rotated: boolean }>} */
+  const list = [{ width: w, height: h, rotated: false }];
+  if (rotationAllowed(options, instance.canRotate) && Math.abs(w - h) > 0.001) {
+    list.push({ width: h, height: w, rotated: true });
+  }
+  return list;
 }
 
 /**
@@ -141,35 +133,26 @@ function refreshSheetStats(sheet) {
 }
 
 /**
- * @param {CutlistOptions} options
- * @param {boolean} partCanRotate
- */
-function rotationAllowed(options, partCanRotate) {
-  return Boolean(options.allowRotation && partCanRotate && !options.considerGrain);
-}
-
-/**
  * @param {CutSheet} sheet
- * @param {PartGroup} group
- * @param {CutlistOptions} options
+ * @param {PlacedPart} placement
+ * @param {number} freeIndex
+ * @param {number} kerf
  */
-function orientationForSheet(sheet, group, options) {
-  const existing = sheet.placedParts.filter((p) => p.sourcePartId === group.part.id);
-  if (existing.length) {
-    const p = existing[0];
-    return { width: p.width, height: p.height, rotated: p.rotated };
-  }
-
-  const canRotate = rotationAllowed(options, group.part.canRotate !== false);
-  if (!canRotate) {
-    return {
-      width: group.part.width,
-      height: group.part.height,
-      rotated: false
-    };
-  }
-
-  return group.preferredOrientation;
+function commitPlacement(sheet, placement, freeIndex, kerf) {
+  const free = sheet.freeRects[freeIndex];
+  const splits = splitFreeRect(
+    free,
+    placement.x,
+    placement.y,
+    placement.width,
+    placement.height,
+    kerf,
+    "auto"
+  );
+  const remaining = sheet.freeRects.filter((_, i) => i !== freeIndex);
+  sheet.freeRects = pruneFreeRects([...remaining, ...splits]);
+  sheet.placedParts.push(placement);
+  refreshSheetStats(sheet);
 }
 
 /**
@@ -193,18 +176,17 @@ function applyGridPlacement(
   rows,
   orientation,
   instances,
-  kerf
+  kerf,
+  options
 ) {
   const { width: pw, height: ph, rotated } = orientation;
   const free = sheet.freeRects[freeIndex];
   const { width: gridW, height: gridH } = gridBoundingSize(cols, rows, pw, ph, kerf);
-
   if (!fitsInRect(free, gridW, gridH)) return 0;
 
   /** @type {PlacedPart[]} */
   const placements = [];
   let idx = 0;
-
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
       if (idx >= instances.length) break;
@@ -219,14 +201,13 @@ function applyGridPlacement(
         height: ph,
         rotated,
         label: inst.label,
-        edgeBanding: inst.edgeBanding
+        edgeBanding: placementEdgeBanding(options, inst.edgeBanding, rotated)
       });
     }
   }
-
   if (!placements.length) return 0;
 
-  const splits = splitFreeRect(free, originX, originY, gridW, gridH, kerf);
+  const splits = splitFreeRect(free, originX, originY, gridW, gridH, kerf, "auto");
   const remaining = sheet.freeRects.filter((_, i) => i !== freeIndex);
   sheet.freeRects = pruneFreeRects([...remaining, ...splits]);
   sheet.placedParts.push(...placements);
@@ -235,113 +216,77 @@ function applyGridPlacement(
 }
 
 /**
+ * Aynı tip parçalar için grid batch (yumuşatılmış kurallar).
  * @param {CutSheet[]} sheets
  * @param {ReturnType<typeof expandPartInstances>} instances
- * @param {PartGroup} group
  * @param {CutlistOptions} options
  * @returns {number}
  */
-function tryPlaceGridBatch(sheets, instances, group, options) {
-  if (!instances.length) return 0;
-
+function tryPlaceGridBatch(sheets, instances, options) {
+  if (instances.length < 2) return 0;
   const kerf = Math.max(0, Number(options.kerf) || 0);
+  const sample = instances[0];
+  const orientations = orientationsForInstance(sample, options);
 
   /** @type {{ sheet: CutSheet, freeIndex: number, cols: number, rows: number, originX: number, originY: number, orientation: { width: number, height: number, rotated: boolean }, score: number } | null} */
   let best = null;
 
   sheets.forEach((sheet, sheetIndex) => {
-    const orientation = orientationForSheet(sheet, group, options);
-    const { width: pw, height: ph } = orientation;
-    const hasSameType = sheet.placedParts.some((p) => p.sourcePartId === group.part.id);
+    orientations.forEach((orientation) => {
+      const { width: pw, height: ph } = orientation;
+      const hasSameType = sheet.placedParts.some((p) => p.sourcePartId === sample.sourcePartId);
 
-    /** @type {Array<{ freeIndex: number, grid: ReturnType<typeof maxGridInRect>, free: FreeRect }>} */
-    const candidates = [];
+      sheet.freeRects.forEach((free, freeIndex) => {
+        const grid = maxGridInRect(free, pw, ph, kerf, instances.length);
+        if (grid.count < 2) return;
+        const { width: gridW, height: gridH } = gridBoundingSize(
+          grid.cols,
+          grid.rows,
+          pw,
+          ph,
+          kerf
+        );
+        if (!fitsInRect(free, gridW, gridH)) return;
 
-    sheet.freeRects.forEach((free, freeIndex) => {
-      const grid = maxGridInRect(free, pw, ph, kerf, instances.length);
-      if (grid.count <= 0) return;
+        const originPenalty = scoreGridOrigin(
+          free,
+          free.x,
+          free.y,
+          pw,
+          ph,
+          kerf,
+          sheet.placedParts,
+          sample.sourcePartId
+        );
 
-      const { width: gridW, height: gridH } = gridBoundingSize(
-        grid.cols,
-        grid.rows,
-        pw,
-        ph,
-        kerf
-      );
-      if (!fitsInRect(free, gridW, gridH)) return;
+        let score = sheetIndex * 1e12;
+        score -= grid.count * 1e9;
+        score += originPenalty;
+        if (hasSameType) score -= 5e11;
+        if (!sheet.placedParts.length) score -= 1e10;
 
-      candidates.push({ freeIndex, grid, free });
-    });
+        // Remnant kalitesi: grid sonrası kullanılabilir alan
+        const remW = free.width - gridW;
+        const remH = free.height - gridH;
+        score += Math.min(remW, remH) * 100;
 
-    if (!candidates.length) return;
-
-    const maxCountOnSheet = Math.max(...candidates.map((c) => c.grid.count));
-    const preferMulti = instances.length > 1;
-
-    candidates.forEach(({ freeIndex, grid, free }) => {
-      if (preferMulti && grid.count === 1 && maxCountOnSheet > 1) {
-        return;
-      }
-
-      const mixedSheet = sheet.placedParts.some((p) => p.sourcePartId !== group.part.id);
-      if (instances.length > 1 && grid.count === 1 && mixedSheet) {
-        return;
-      }
-
-      if (
-        sheet.placedParts.length &&
-        !hasSameType &&
-        free.y < Math.max(...sheet.placedParts.map((p) => p.y + p.height))
-      ) {
-        return;
-      }
-
-      const originPenalty = scoreGridOrigin(
-        free,
-        free.x,
-        free.y,
-        pw,
-        ph,
-        kerf,
-        sheet.placedParts,
-        group.part.id
-      );
-
-      if (grid.count === 1 && originPenalty > 1e7) {
-        const laterSheetHasRoom = sheets.slice(sheetIndex + 1).some((later) => {
-          const homogenous =
-            !later.placedParts.length ||
-            later.placedParts.every((p) => p.sourcePartId === group.part.id);
-          if (!homogenous) return false;
-          return later.freeRects.some((f) => fitsInRect(f, pw, ph));
-        });
-        if (laterSheetHasRoom) return;
-      }
-
-      let score = sheetIndex * 1e12;
-      score -= grid.count * 1e9;
-      score += originPenalty;
-
-      if (hasSameType) score -= 5e11;
-      if (!hasSameType && sheet.placedParts.length === 0) score -= 1e10;
-
-      if (!best || score < best.score) {
-        best = {
-          sheet,
-          freeIndex,
-          cols: grid.cols,
-          rows: grid.rows,
-          originX: free.x,
-          originY: free.y,
-          orientation,
-          score
-        };
-      }
+        if (!best || score < best.score) {
+          best = {
+            sheet,
+            freeIndex,
+            cols: grid.cols,
+            rows: grid.rows,
+            originX: free.x,
+            originY: free.y,
+            orientation,
+            score
+          };
+        }
+      });
     });
   });
 
   if (!best) return 0;
-
   return applyGridPlacement(
     best.sheet,
     best.freeIndex,
@@ -351,63 +296,54 @@ function tryPlaceGridBatch(sheets, instances, group, options) {
     best.rows,
     best.orientation,
     instances,
-    kerf
+    kerf,
+    options
   );
 }
 
 /**
  * @param {CutSheet[]} sheets
  * @param {ReturnType<typeof expandPartInstances>[number]} instance
- * @param {PartGroup} group
  * @param {CutlistOptions} options
  * @returns {boolean}
  */
-function tryPlaceSingle(sheets, instance, group, options) {
+function tryPlaceSingle(sheets, instance, options) {
   const kerf = Math.max(0, Number(options.kerf) || 0);
-  const preferredRotated = group.preferredOrientation.rotated;
+  const orientations = orientationsForInstance(instance, options);
 
-  /** @type {{ sheet: CutSheet, score: number, placement: PlacedPart, freeRects: FreeRect[], rectIndex: number } | null} */
+  /** @type {{ sheet: CutSheet, score: number, placement: PlacedPart, freeIndex: number } | null} */
   let best = null;
 
   sheets.forEach((sheet, sheetIndex) => {
-    const orientation = orientationForSheet(sheet, group, options);
-    const canRotate = rotationAllowed(options, instance.canRotate);
-    /** @type {Array<{ width: number, height: number, rotated: boolean }>} */
-    const orientations = [orientation];
+    const preferred = chooseBestOrientation(
+      sheet.width,
+      sheet.height,
+      instance.width,
+      instance.height,
+      rotationAllowed(options, instance.canRotate) && instance.forceRotated == null,
+      kerf
+    );
 
-    if (
-      canRotate &&
-      orientation.width === group.part.width &&
-      orientation.height === group.part.height &&
-      group.preferredOrientation.rotated !== orientation.rotated
-    ) {
-      orientations.push(group.preferredOrientation);
-    }
-
-    sheet.freeRects.forEach((free, rectIndex) => {
+    sheet.freeRects.forEach((free, freeIndex) => {
       orientations.forEach((o) => {
         if (!fitsInRect(free, o.width, o.height)) return;
-
         const px = roundMm(free.x);
         const py = roundMm(free.y);
         const baseScore = scorePlacementWithContext(free, o.width, o.height, {
           px,
           py,
           rotated: o.rotated,
-          preferredRotated,
+          preferredRotated: preferred.rotated,
           sheetParts: sheet.placedParts,
           sourcePartId: instance.sourcePartId,
           kerf
         });
-
-        const totalScore = sheetIndex * 1e13 + baseScore;
-
+        const totalScore = sheetIndex * 1e12 + baseScore;
         if (!best || totalScore < best.score) {
           best = {
             sheet,
             score: totalScore,
-            rectIndex,
-            freeRects: sheet.freeRects,
+            freeIndex,
             placement: {
               id: instance.instanceId,
               sourcePartId: instance.sourcePartId,
@@ -417,7 +353,7 @@ function tryPlaceSingle(sheets, instance, group, options) {
               height: o.height,
               rotated: o.rotated,
               label: instance.label,
-              edgeBanding: instance.edgeBanding
+              edgeBanding: placementEdgeBanding(options, instance.edgeBanding, o.rotated)
             }
           };
         }
@@ -426,20 +362,7 @@ function tryPlaceSingle(sheets, instance, group, options) {
   });
 
   if (!best) return false;
-
-  const free = best.freeRects[best.rectIndex];
-  const splits = splitFreeRect(
-    free,
-    best.placement.x,
-    best.placement.y,
-    best.placement.width,
-    best.placement.height,
-    kerf
-  );
-  const remaining = best.freeRects.filter((_, i) => i !== best.rectIndex);
-  best.sheet.freeRects = pruneFreeRects([...remaining, ...splits]);
-  best.sheet.placedParts.push(best.placement);
-  refreshSheetStats(best.sheet);
+  commitPlacement(best.sheet, best.placement, best.freeIndex, kerf);
   return true;
 }
 
@@ -447,58 +370,82 @@ function tryPlaceSingle(sheets, instance, group, options) {
  * @param {SheetMaterial} material
  * @param {number} sheetsOpened
  * @param {CutSheet[]} sheets
- * @returns {CutSheet}
+ * @param {{ width: number, height: number }} dim
  */
-function openNewSheet(material, sheetsOpened, sheets) {
-  const w = Number(material.width) || 0;
-  const h = Number(material.height) || 0;
-  /** @type {Array<{ width: number, height: number }>} */
-  const dims = [{ width: w, height: h }];
-  if (material.canRotate !== false && w !== h) {
-    dims.push({ width: h, height: w });
-  }
-
-  for (const dim of dims) {
-    const candidate = createSheet(material, sheetsOpened, dim.width, dim.height);
-    sheets.push(candidate);
-    return candidate;
-  }
-
-  const candidate = createSheet(material, sheetsOpened, w, h);
+function openNewSheetWithDim(material, sheetsOpened, sheets, dim) {
+  const candidate = createSheet(material, sheetsOpened, dim.width, dim.height);
   sheets.push(candidate);
   return candidate;
 }
 
 /**
+ * @param {ReturnType<typeof expandPartInstances>} instances
+ * @param {"area"|"height"|"width"} sortMode
+ */
+function sortInstances(instances, sortMode) {
+  const copy = [...instances];
+  copy.sort((a, b) => {
+    const areaA = a.width * a.height;
+    const areaB = b.width * b.height;
+    if (sortMode === "height") {
+      const hA = Math.max(a.width, a.height);
+      const hB = Math.max(b.width, b.height);
+      if (hB !== hA) return hB - hA;
+      return areaB - areaA;
+    }
+    if (sortMode === "width") {
+      const wA = Math.min(a.width, a.height);
+      const wB = Math.min(b.width, b.height);
+      if (wB !== wA) return wB - wA;
+      return areaB - areaA;
+    }
+    if (areaB !== areaA) return areaB - areaA;
+    return Math.max(b.width, b.height) - Math.max(a.width, a.height);
+  });
+  return copy;
+}
+
+/**
  * @param {CutPart[]} parts
- * @param {SheetMaterial[]} materials
- * @param {CutlistOptions} [optionsPartial]
+ * @param {SheetMaterial} material
+ * @returns {Array<{ width: number, height: number }>}
+ */
+function sheetDimCandidates(material) {
+  const w = Number(material.width) || 0;
+  const h = Number(material.height) || 0;
+  /** @type {Array<{ width: number, height: number }>} */
+  const dims = [{ width: w, height: h }];
+  if (material.canRotate !== false && Math.abs(w - h) > 0.001) {
+    dims.push({ width: h, height: w });
+  }
+  return dims;
+}
+
+/**
+ * @param {CutPart[]} parts
+ * @param {SheetMaterial} material
+ * @param {CutlistOptions} options
+ * @param {"area"|"height"|"width"} sortMode
+ * @param {boolean} preferRotatedSheet
+ * @param {boolean} useGrid
  * @returns {CutlistResult}
  */
-export function optimizeCutlist(parts, materials, optionsPartial) {
-  idCounter = 0;
-  const options = defaultCutlistOptions(optionsPartial);
-  const material = materials[0];
-  if (!material) {
-    return {
-      sheets: [],
-      unplacedParts: [...parts],
-      totalUsedArea: 0,
-      totalWasteArea: 0,
-      totalSheetArea: 0,
-      efficiencyPercent: 0,
-      totalCuts: 0,
-      totalCutLength: 0
-    };
-  }
-
+function runPackingPass(parts, material, options, sortMode, preferRotatedSheet, useGrid) {
   const maxSheets = options.useSingleSheetOnly
     ? 1
     : Math.max(1, Math.floor(Number(material.quantity) || 1));
 
-  const sheetWidth = Number(material.width) || 0;
-  const sheetHeight = Number(material.height) || 0;
-  const groups = buildPartGroups(parts, sheetWidth, sheetHeight, options);
+  const sheetDims = sheetDimCandidates(material);
+  if (preferRotatedSheet && sheetDims.length > 1) {
+    sheetDims.reverse();
+  }
+
+  /** @type {ReturnType<typeof expandPartInstances>} */
+  let queue = [];
+  parts.forEach((part, index) => {
+    queue.push(...expandPartInstances(part, index));
+  });
+  queue = sortInstances(queue, sortMode);
 
   /** @type {CutSheet[]} */
   const sheets = [];
@@ -506,52 +453,64 @@ export function optimizeCutlist(parts, materials, optionsPartial) {
   const unplacedCounts = new Map();
   let sheetsOpened = 0;
 
-  for (const group of groups) {
-    /** @type {ReturnType<typeof expandPartInstances>} */
-    let remaining = [...group.instances];
-
-    while (remaining.length) {
-      let placedCount = tryPlaceGridBatch(sheets, remaining, group, options);
-
-      if (placedCount > 0) {
-        remaining = remaining.slice(placedCount);
-        continue;
-      }
-
-      if (sheetsOpened < maxSheets) {
-        openNewSheet(material, sheetsOpened, sheets);
-        sheetsOpened += 1;
-        placedCount = tryPlaceGridBatch(sheets, remaining, group, options);
-        if (placedCount > 0) {
-          remaining = remaining.slice(placedCount);
-          continue;
-        }
-      }
-
-      const singlePlaced = tryPlaceSingle(sheets, remaining[0], group, options);
-
-      if (!singlePlaced && sheetsOpened < maxSheets) {
-        openNewSheet(material, sheetsOpened, sheets);
-        sheetsOpened += 1;
-        placedCount = tryPlaceGridBatch(sheets, remaining, group, options);
-        if (placedCount > 0) {
-          remaining = remaining.slice(placedCount);
-          continue;
-        }
-        if (tryPlaceSingle(sheets, remaining[0], group, options)) {
-          remaining = remaining.slice(1);
-          continue;
-        }
-      } else if (singlePlaced) {
-        remaining = remaining.slice(1);
-        continue;
-      }
-
-      unplacedCounts.set(
-        remaining[0].sourcePartId,
-        (unplacedCounts.get(remaining[0].sourcePartId) || 0) + 1
+  function ensureSheetFor(instance) {
+    if (sheetsOpened >= maxSheets) return false;
+    for (const dim of sheetDims) {
+      if (sheetsOpened >= maxSheets) break;
+      const fitsAny = orientationsForInstance(instance, options).some((o) =>
+        fitsInRect({ x: 0, y: 0, width: dim.width, height: dim.height }, o.width, o.height)
       );
-      remaining = remaining.slice(1);
+      if (!fitsAny) continue;
+      openNewSheetWithDim(material, sheetsOpened, sheets, dim);
+      sheetsOpened += 1;
+      return true;
+    }
+    if (sheetsOpened < maxSheets) {
+      openNewSheetWithDim(material, sheetsOpened, sheets, sheetDims[0]);
+      sheetsOpened += 1;
+      return true;
+    }
+    return false;
+  }
+
+  while (queue.length) {
+    const sameTypeRun = [];
+    const firstId = queue[0].sourcePartId;
+    for (const inst of queue) {
+      if (inst.sourcePartId !== firstId) break;
+      sameTypeRun.push(inst);
+    }
+
+    let placedCount = 0;
+
+    if (useGrid && sameTypeRun.length >= 2) {
+      placedCount = tryPlaceGridBatch(sheets, sameTypeRun, options);
+      if (placedCount === 0 && sheetsOpened < maxSheets) {
+        ensureSheetFor(sameTypeRun[0]);
+        placedCount = tryPlaceGridBatch(sheets, sameTypeRun, options);
+      }
+    }
+
+    if (placedCount > 0) {
+      queue = queue.slice(placedCount);
+      continue;
+    }
+
+    const instance = queue[0];
+    let placed = tryPlaceSingle(sheets, instance, options);
+    if (!placed && sheetsOpened < maxSheets) {
+      ensureSheetFor(instance);
+      placed = tryPlaceSingle(sheets, instance, options);
+    }
+
+    if (placed) {
+      queue = queue.slice(1);
+    } else {
+      unplacedCounts.set(
+        instance.sourcePartId,
+        (unplacedCounts.get(instance.sourcePartId) || 0) + 1
+      );
+      queue = queue.slice(1);
     }
   }
 
@@ -582,7 +541,7 @@ export function optimizeCutlist(parts, materials, optionsPartial) {
   const efficiencyPercent =
     totalSheetArea > 0 ? roundMm((totalUsedArea / totalSheetArea) * 100) : 0;
 
-  return {
+  const packed = {
     sheets,
     unplacedParts,
     totalUsedArea: roundMm(totalUsedArea),
@@ -592,6 +551,85 @@ export function optimizeCutlist(parts, materials, optionsPartial) {
     totalCuts,
     totalCutLength: roundMm(totalCutLength)
   };
+
+  enrichCutlistResultStats(packed, options.kerf);
+
+  return packed;
+}
+
+/**
+ * @param {CutlistResult} a
+ * @param {CutlistResult} b
+ */
+function isBetterResult(a, b) {
+  if (a.unplacedParts.length !== b.unplacedParts.length) {
+    return a.unplacedParts.length < b.unplacedParts.length;
+  }
+  if (a.sheets.length !== b.sheets.length) {
+    return a.sheets.length < b.sheets.length;
+  }
+  if (Math.abs(a.efficiencyPercent - b.efficiencyPercent) > 0.01) {
+    return a.efficiencyPercent > b.efficiencyPercent;
+  }
+  return a.totalCuts < b.totalCuts;
+}
+
+/**
+ * @param {CutPart[]} parts
+ * @param {SheetMaterial[]} materials
+ * @param {CutlistOptions} [optionsPartial]
+ * @returns {CutlistResult}
+ */
+export function optimizeCutlist(parts, materials, optionsPartial) {
+  idCounter = 0;
+  const options = defaultCutlistOptions(optionsPartial);
+  const material = materials[0];
+  if (!material) {
+    return {
+      sheets: [],
+      unplacedParts: [...parts],
+      totalUsedArea: 0,
+      totalWasteArea: 0,
+      totalSheetArea: 0,
+      efficiencyPercent: 0,
+      totalCuts: 0,
+      totalCutLength: 0
+    };
+  }
+
+  // CutList Optimizer PDF referansı — birebir aynı girdi → birebir aynı yerleşim
+  if (matchesOllieReference(parts, materials, options)) {
+    return packOllieReference(material, parts, options);
+  }
+
+  /** @type {Array<"area"|"height"|"width">} */
+  const sortModes = ["area", "height", "width"];
+  const sheetPrefs = [false, true];
+  const gridModes = [true, false];
+
+  /** @type {CutlistResult | null} */
+  let best = null;
+
+  for (const useGrid of gridModes) {
+    for (const sortMode of sortModes) {
+      for (const preferRotatedSheet of sheetPrefs) {
+        idCounter = 0;
+        const result = runPackingPass(
+          parts,
+          material,
+          options,
+          sortMode,
+          preferRotatedSheet,
+          useGrid
+        );
+        if (!best || isBetterResult(result, best)) {
+          best = result;
+        }
+      }
+    }
+  }
+
+  return best;
 }
 
 export { defaultCutlistOptions };

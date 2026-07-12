@@ -232,16 +232,27 @@ function buildHtml2CanvasOptions(originalRoot, extra = {}) {
   };
 }
 
-function buildPdfOptions(filename, html2canvasOpts, pagebreakModes) {
-  return {
-    margin: [10, 10, 12, 10],
-    filename,
-    image: { type: "jpeg", quality: 0.92 },
-    html2canvas: html2canvasOpts,
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: pagebreakModes
+function buildPdfOptions(filename, html2canvasOpts, pagebreakModes, jsPdfOpts) {
+  const canvasOpts =
+    jsPdfOpts?.scale != null
+      ? { ...html2canvasOpts, scale: jsPdfOpts.scale }
+      : html2canvasOpts;
+  const pagebreak =
+    jsPdfOpts?.pagebreak ||
+    (pagebreakModes
       ? { mode: pagebreakModes }
-      : { mode: ["legacy"] }
+      : { mode: ["legacy"] });
+  return {
+    margin: jsPdfOpts?.margin ?? [10, 10, 12, 10],
+    filename,
+    image: { type: "jpeg", quality: 0.95 },
+    html2canvas: canvasOpts,
+    jsPDF: {
+      unit: "mm",
+      format: "a4",
+      orientation: jsPdfOpts?.orientation ?? "portrait"
+    },
+    pagebreak
   };
 }
 
@@ -276,8 +287,9 @@ export function formatPdfErrorForUser(err, fallbackPrefix = "PDF") {
 /**
  * @param {HTMLElement} element
  * @param {string} filenameBase Uzantısız dosya adı önerisi (.pdf eklenir)
+ * @param {{ orientation?: "portrait" | "landscape", margin?: number[], scale?: number, pagebreak?: object }} [pdfOpts]
  */
-export async function downloadElementAsPdf(element, filenameBase) {
+export async function downloadElementAsPdf(element, filenameBase, pdfOpts) {
   if (!element || !(element instanceof HTMLElement)) {
     throw new Error("Geçerli yazdırma kutusu bulunamadı.");
   }
@@ -296,7 +308,7 @@ export async function downloadElementAsPdf(element, filenameBase) {
   const attempts = [
     {
       label: "normal",
-      opts: buildPdfOptions(name, buildHtml2CanvasOptions(element), ["css", "legacy"])
+      opts: buildPdfOptions(name, buildHtml2CanvasOptions(element), ["css", "legacy"], pdfOpts)
     },
     {
       label: "fallback-light",
@@ -307,7 +319,8 @@ export async function downloadElementAsPdf(element, filenameBase) {
           allowTaint: true,
           useCORS: true
         }),
-        ["legacy"]
+        ["legacy"],
+        pdfOpts
       )
     }
   ];

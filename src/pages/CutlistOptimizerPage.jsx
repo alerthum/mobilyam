@@ -26,7 +26,10 @@ export default function CutlistOptimizerPage() {
   const pdfHolderRef = useRef(null);
   const [parts, setParts] = useState(createDefaultParts);
   const [sheets, setSheets] = useState(createDefaultSheets);
-  const [options, setOptions] = useState(() => defaultCutlistOptions());
+  const [options, setOptions] = useState(() => ({
+    ...defaultCutlistOptions(),
+    edgeBanding: true
+  }));
   const [result, setResult] = useState(null);
   const [open, setOpen] = useState({
     parts: true,
@@ -74,7 +77,7 @@ export default function CutlistOptimizerPage() {
 
       <div
         ref={pdfHolderRef}
-        className="fixed left-0 top-0 z-[60] w-[210mm] max-w-[100vw] max-h-[100vh] overflow-auto opacity-[0.02] pointer-events-none bg-white"
+        className="fixed left-[-10000px] top-0 z-[60] w-[297mm] overflow-visible opacity-0 pointer-events-none bg-white h-auto max-h-none"
         aria-hidden
       >
         {result ? (
@@ -157,7 +160,7 @@ export default function CutlistOptimizerPage() {
             </div>
             {open.result ? (
               <div className="mt-3">
-                <CutlistResult result={result} options={options} />
+                <CutlistResult result={result} options={options} sheetMaterial={sheets[0]} />
               </div>
             ) : null}
           </Card>

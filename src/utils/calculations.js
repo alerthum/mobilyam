@@ -295,7 +295,8 @@ function mutfakComponentCm2(basic) {
   const C9 = num(basic.buzDolapEn);
   const C10 = num(basic.buzYanakAdet);
 
-  const ustRawBase = (C5 - 140) * (C6 - C8 - C9);
+  /* Üst dolap yüksekliği sabit 100 cm; genişlik = duvar − boy − buz */
+  const ustRawBase = (C6 - C8 - C9) * 100;
   const ustDolapCm2 = kademeliMutfak
     ? Math.max(0, ustRawBase) * 1.3
     : Math.max(0, ustRawBase);
@@ -333,8 +334,8 @@ export function getMutfakM2Breakdown(basic) {
 
   const ustWide = `${fmt(r.C6)} − ${fmt(r.C8)} − ${fmt(r.C9)}`;
   const ustDetail = r.kademeliMutfak
-    ? `(${fmt(r.C5)} − 140) × (${ustWide}) × 1,30 (kademeli üst dolap %30) = ${fmt(r.ustDolapCm2)} cm²`
-    : `(${fmt(r.C5)} − 140) × (${ustWide}) = ${fmt(r.ustDolapCm2)} cm²`;
+    ? `(${ustWide}) × 100 × 1,30 (kademeli üst dolap %30) = ${fmt(r.ustDolapCm2)} cm²`
+    : `(${ustWide}) × 100 = ${fmt(r.ustDolapCm2)} cm²`;
 
   const altWide = `${fmt(r.C6)} − ${fmt(r.C7)} − ${fmt(r.C8)} − ${fmt(r.C9)}`;
   const altDetail = `(${altWide}) × 100 × 1,3 = ${fmt(r.altDolapCm2)} cm²`;
@@ -392,7 +393,7 @@ export function getMutfakM2Breakdown(basic) {
 
 /**
  * Mutfak — Excel maliyet raporu mantığıyla uyumlu (özet):
- *  - Üst dolap   = (tavan-140) × (duvar - boyDolapEn - buzDolapEn); kademeli mutfakta sonuç ×1,30
+ *  - Üst dolap   = (duvar - boyDolapEn - buzDolapEn) × 100; kademeli mutfakta sonuç ×1,30
  *  - Alt dolap raw = (duvar - kapı - boyDolap - buzDolap)
  *  - Alt dolap   = altRaw × 100 × 1.3
  *  - Tezgah mt   = altRaw / 100  (metre cinsinden uzunluk; m² toplamına girmez)
@@ -417,8 +418,8 @@ export function calcMutfak(basic) {
         label: "Üst dolap",
         m2: round(r.ustDolapCm2 / 10000, 3),
         formula: r.kademeliMutfak
-          ? "(tavan-140)×(duvar-boy-buz)×1,30 (kademeli)"
-          : "(tavan-140) × (duvar-boy-buz)"
+          ? "(duvar-boy-buz)×100×1,30 (kademeli)"
+          : "(duvar-boy-buz) × 100"
       },
       {
         label: "Alt dolap",

@@ -79,32 +79,36 @@ export function pruneFreeRects(rects) {
 }
 
 /**
- * Parça yerleştirildikten sonra guillotine free-rect bölme (kerf dahil).
+ * Guillotine free-rect bölme.
+ * split preferential: "horizontal" = alt şerit tam genişlik (eski davranış),
+ * "vertical" = sağ şerit tam yükseklik,
+ * "auto" = daha büyük remnant alanını koruyan ekseni seç.
  * @param {FreeRect} free
  * @param {number} px
  * @param {number} py
  * @param {number} pw
  * @param {number} ph
  * @param {number} kerf
+ * @param {"auto"|"horizontal"|"vertical"} [mode]
  * @returns {FreeRect[]}
  */
-export function splitFreeRect(free, px, py, pw, ph, kerf) {
+export function splitFreeRect(free, px, py, pw, ph, kerf, mode = "auto") {
   const k = Math.max(0, kerf);
-  const next = [];
-
   const rightW = free.x + free.width - (px + pw + k);
+  const bottomH = free.y + free.height - (py + ph + k);
+
+  /** @type {FreeRect[]} */
+  const horizontalFirst = [];
   if (rightW > EPS) {
-    next.push({
+    horizontalFirst.push({
       x: px + pw + k,
       y: py,
       width: rightW,
       height: ph
     });
   }
-
-  const bottomH = free.y + free.height - (py + ph + k);
   if (bottomH > EPS) {
-    next.push({
+    horizontalFirst.push({
       x: free.x,
       y: py + ph + k,
       width: free.width,
@@ -112,7 +116,37 @@ export function splitFreeRect(free, px, py, pw, ph, kerf) {
     });
   }
 
-  return next;
+  /** @type {FreeRect[]} */
+  const verticalFirst = [];
+  if (bottomH > EPS) {
+    verticalFirst.push({
+      x: px,
+      y: py + ph + k,
+      width: pw,
+      height: bottomH
+    });
+  }
+  if (rightW > EPS) {
+    verticalFirst.push({
+      x: px + pw + k,
+      y: free.y,
+      width: rightW,
+      height: free.height
+    });
+  }
+
+  if (mode === "horizontal") return horizontalFirst;
+  if (mode === "vertical") return verticalFirst;
+
+  const areaH = horizontalFirst.reduce((s, r) => s + rectArea(r), 0);
+  const areaV = verticalFirst.reduce((s, r) => s + rectArea(r), 0);
+  if (areaV > areaH + EPS) return verticalFirst;
+  if (areaH > areaV + EPS) return horizontalFirst;
+
+  // Eşitlikte kısa kenar leftover tercih (SAS)
+  const leftoverW = free.width - pw;
+  const leftoverH = free.height - ph;
+  return leftoverW < leftoverH ? verticalFirst : horizontalFirst;
 }
 
 /**
@@ -286,7 +320,7 @@ export function blockBoundsForType(parts, sourcePartId) {
 }
 
 /**
- * BSSF + blok/grup tutarlılığı skoru (düşük daha iyi).
+ * BSSF + hafif grup tercihi (düşük daha iyi). Karışık doldurmayı engellemez.
  * @param {FreeRect} rect
  * @param {number} pw
  * @param {number} ph
@@ -294,33 +328,24 @@ export function blockBoundsForType(parts, sourcePartId) {
  * @param {number} ctx.px
  * @param {number} ctx.py
  * @param {boolean} ctx.rotated
- * @param {boolean} ctx.preferredRotated
+ * @param {boolean} [ctx.preferredRotated]
  * @param {PlacedPart[]} ctx.sheetParts
  * @param {string} ctx.sourcePartId
  * @param {number} ctx.kerf
  */
 export function scorePlacementWithContext(rect, pw, ph, ctx) {
   let score = scorePlacement(rect, pw, ph);
-  score += ctx.py * 1e4 + ctx.px;
+  score += ctx.py * 10 + ctx.px * 0.01;
 
-  if (ctx.rotated !== ctx.preferredRotated) {
-    score += 5e10;
-  }
+  // Daha küçük free-rect tercih (sıkı doldurma)
+  score += rectArea(rect) * 0.001;
 
   const sameType = ctx.sheetParts.filter((p) => p.sourcePartId === ctx.sourcePartId);
-  const otherTypes = ctx.sheetParts.filter((p) => p.sourcePartId !== ctx.sourcePartId);
-
-  if (otherTypes.length && !sameType.length) {
-    const maxOtherBottom = Math.max(...otherTypes.map((p) => p.y + p.height));
-    if (ctx.py + EPS < maxOtherBottom + ctx.kerf) {
-      score += 2e13;
-    }
-  }
 
   if (sameType.length) {
     const existingRotated = sameType[0].rotated;
     if (ctx.rotated !== existingRotated) {
-      score += 1e11;
+      score += 1e5;
     }
 
     let adjacent = false;
@@ -330,17 +355,11 @@ export function scorePlacementWithContext(rect, pw, ph, ctx) {
         break;
       }
     }
-    if (adjacent) {
-      score -= 5e8;
-    } else {
-      score += 2e9;
-      if (otherTypes.length) {
-        const maxOtherBottom = Math.max(...otherTypes.map((p) => p.y + p.height));
-        if (ctx.py + EPS < maxOtherBottom + ctx.kerf) {
-          score += 2e13;
-        }
-      }
-    }
+    if (adjacent) score -= 5e6;
+  }
+
+  if (ctx.preferredRotated != null && ctx.rotated !== ctx.preferredRotated) {
+    score += 50;
   }
 
   return score;

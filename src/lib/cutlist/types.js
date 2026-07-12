@@ -30,6 +30,7 @@
  * @property {number} quantity
  * @property {string} label
  * @property {boolean} canRotate
+ * @property {boolean | null} [forceRotated] true=zorunlu döndürülmüş, false=zorunlu orijinal, null/undefined=serbest
  * @property {EdgeBanding} [edgeBanding]
  */
 
@@ -87,6 +88,11 @@
  * @property {number} wasteArea
  * @property {number} efficiencyPercent
  * @property {CutStep[]} [cutSteps]
+ * @property {number} [cutCount]
+ * @property {number} [cutLength]
+ * @property {number} [surplusCount]
+ * @property {number} [edgeBandingLength]
+ * @property {number} [wastePercent]
  */
 
 /**
@@ -99,6 +105,7 @@
  * @property {number} efficiencyPercent
  * @property {number} totalCuts
  * @property {number} totalCutLength
+ * @property {number} [totalEdgeBandingLength]
  */
 
 /**
@@ -126,6 +133,31 @@ export function defaultCutlistOptions(partial = {}) {
     allowRotation: true,
     ...partial
   };
+}
+
+/**
+ * Parça yerleşiminde döndürme varsa kenar bant kenarlarını 90° kaydırır.
+ * @param {EdgeBanding | undefined} edge
+ * @param {boolean} rotated
+ * @returns {EdgeBanding | undefined}
+ */
+export function edgeBandingForPlacement(edge, rotated) {
+  if (!edge) return undefined;
+  const next = rotated
+    ? {
+        top: Boolean(edge.left),
+        right: Boolean(edge.top),
+        bottom: Boolean(edge.right),
+        left: Boolean(edge.bottom)
+      }
+    : {
+        top: Boolean(edge.top),
+        right: Boolean(edge.right),
+        bottom: Boolean(edge.bottom),
+        left: Boolean(edge.left)
+      };
+  if (!next.top && !next.right && !next.bottom && !next.left) return undefined;
+  return next;
 }
 
 export {};
