@@ -302,7 +302,7 @@ function mutfakComponentCm2(basic) {
     : Math.max(0, ustRawBase);
   const altDolapRaw = C6 - C7 - C8 - C9;
   const altRaw = altDolapRaw * 100 * 1.3;
-  const buzRaw = (C5 - 195) * C9 * 1.3;
+  const buzRaw = (C5 - 195) * C9 * 1.6;
   const yanakRaw = C5 * 70 * C10;
   const boyRaw = C5 * C8 * 1.3;
 
@@ -360,7 +360,7 @@ export function getMutfakM2Breakdown(basic) {
       label: "Buz dolap",
       cm2: r.buzDolapCm2,
       m2: r.buzDolapCm2 / 10000,
-      detail: `(${fmt(r.C5)} − 195) × ${fmt(r.C9)} × 1,3 = ${fmt(r.buzDolapCm2)} cm²`
+      detail: `(${fmt(r.C5)} − 195) × ${fmt(r.C9)} × 1,6 = ${fmt(r.buzDolapCm2)} cm²`
     },
     {
       key: "yanak",
@@ -397,7 +397,7 @@ export function getMutfakM2Breakdown(basic) {
  *  - Alt dolap raw = (duvar - kapı - boyDolap - buzDolap)
  *  - Alt dolap   = altRaw × 100 × 1.3
  *  - Tezgah mt   = altRaw / 100  (metre cinsinden uzunluk; m² toplamına girmez)
- *  - Buz dolap   = (tavan-195) × buzDolap × 1.3
+ *  - Buz dolap   = (tavan-195) × buzDolap × 1.6
  *  - Buz yanak   = tavan × 70 × yanakAdet (cm derinlik sabiti)
  *  - Boy dolap   = tavan × boyDolapEn × 1.3
  */
@@ -429,7 +429,7 @@ export function calcMutfak(basic) {
       {
         label: "Buz dolap",
         m2: round(r.buzDolapCm2 / 10000, 3),
-        formula: "(tavan-195) × buz × 1.30"
+        formula: "(tavan-195) × buz × 1.60"
       },
       {
         label: "Buz yanak",
