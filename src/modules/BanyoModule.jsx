@@ -26,7 +26,7 @@ export default function BanyoModule({ room, onChange }) {
           accent="bg-cyan-50 text-cyan-700"
         />
         <div className="mt-4 grid sm:grid-cols-2 gap-3">
-          <Field label="Alt modül uzunluğu">
+          <Field label="Alt Modül En">
             <DecimalInput
               value={basic.lowerWidth}
               onValueChange={(v) => patch({ lowerWidth: v })}
@@ -51,7 +51,7 @@ export default function BanyoModule({ room, onChange }) {
           accent="bg-cyan-50 text-cyan-700"
         />
         <div className="mt-4 grid sm:grid-cols-2 gap-3">
-          <Field label="Üst modül uzunluğu">
+          <Field label="Üst Modül En">
             <DecimalInput
               value={basic.upperWidth}
               onValueChange={(v) => patch({ upperWidth: v })}
@@ -76,7 +76,7 @@ export default function BanyoModule({ room, onChange }) {
           accent="bg-cyan-50 text-cyan-700"
         />
         <div className="mt-4 grid sm:grid-cols-2 gap-3">
-          <Field label="Boy dolap uzunluğu">
+          <Field label="Boy Dolap En">
             <DecimalInput
               value={basic.tallWidth}
               onValueChange={(v) => patch({ tallWidth: v })}

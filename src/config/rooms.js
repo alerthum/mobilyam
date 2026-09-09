@@ -110,6 +110,8 @@ export function createRoom(type, options = {}) {
           boyDolapEn: 0,
           buzDolapEn: 0,
           buzYanakAdet: 0,
+          altDolapDahil: true,
+          ustDolapDahil: true,
           kademeliMutfak: false,
           tezgahM2: 0,
           countertopCatalogId: "",

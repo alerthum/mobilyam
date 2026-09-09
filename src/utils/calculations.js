@@ -295,12 +295,21 @@ function mutfakComponentCm2(basic) {
   const C9 = num(basic.buzDolapEn);
   const C10 = num(basic.buzYanakAdet);
 
+  /**
+   * Alt/üst dolap hesaba dahil mi? Eski kayıtlarda alan yok → dahil sayılır,
+   * böylece geçmiş tekliflerin m² ve tutarları değişmez.
+   */
+  const altDolapDahil = basic.altDolapDahil !== false;
+  const ustDolapDahil = basic.ustDolapDahil !== false;
+
   /* Üst dolap yüksekliği sabit 100 cm; genişlik = duvar − boy − buz */
   const ustRawBase = (C6 - C8 - C9) * 100;
-  const ustDolapCm2 = kademeliMutfak
+  const ustRaw = kademeliMutfak
     ? Math.max(0, ustRawBase) * 1.3
     : Math.max(0, ustRawBase);
-  const altDolapRaw = C6 - C7 - C8 - C9;
+  const ustDolapCm2 = ustDolapDahil ? ustRaw : 0;
+  /* Tezgah uzunluğu da bu satırdan beslenir: alt dolap yoksa tezgah da 0 */
+  const altDolapRaw = altDolapDahil ? C6 - C7 - C8 - C9 : 0;
   const altRaw = altDolapRaw * 100 * 1.3;
   const buzRaw = (C5 - 195) * C9 * 1.6;
   const yanakRaw = C5 * 70 * C10;
@@ -308,6 +317,8 @@ function mutfakComponentCm2(basic) {
 
   return {
     kademeliMutfak,
+    altDolapDahil,
+    ustDolapDahil,
     C5,
     C6,
     C7,
@@ -376,7 +387,12 @@ export function getMutfakM2Breakdown(basic) {
       m2: r.boyDolapCm2 / 10000,
       detail: `${fmt(r.C5)} × ${fmt(r.C8)} × 1,3 = ${fmt(r.boyDolapCm2)} cm²`
     }
-  ];
+  ].filter((row) => {
+    /* Hesaba dahil edilmeyen dolap özet/PDF/m² raporunda hiç görünmez */
+    if (row.key === "ust") return r.ustDolapDahil;
+    if (row.key === "alt") return r.altDolapDahil;
+    return true;
+  });
 
   const totalCm2 = rows.reduce((s, row) => s + row.cm2, 0);
   /** Excel satırı: tezgah “uzunluk” (m); alan toplamına dahil edilmez */
@@ -414,18 +430,26 @@ export function calcMutfak(basic) {
     panelEquivalentM2: round(panelEquivalentM2, 3),
     tezgahMt: round(tezgahMt, 2),
     breakdown: [
-      {
-        label: "Üst dolap",
-        m2: round(r.ustDolapCm2 / 10000, 3),
-        formula: r.kademeliMutfak
-          ? "(duvar-boy-buz)×100×1,30 (kademeli)"
-          : "(duvar-boy-buz) × 100"
-      },
-      {
-        label: "Alt dolap",
-        m2: round(r.altDolapCm2 / 10000, 3),
-        formula: "alt × 1.30"
-      },
+      ...(r.ustDolapDahil
+        ? [
+            {
+              label: "Üst dolap",
+              m2: round(r.ustDolapCm2 / 10000, 3),
+              formula: r.kademeliMutfak
+                ? "(duvar-boy-buz)×100×1,30 (kademeli)"
+                : "(duvar-boy-buz) × 100"
+            }
+          ]
+        : []),
+      ...(r.altDolapDahil
+        ? [
+            {
+              label: "Alt dolap",
+              m2: round(r.altDolapCm2 / 10000, 3),
+              formula: "alt × 1.30"
+            }
+          ]
+        : []),
       {
         label: "Buz dolap",
         m2: round(r.buzDolapCm2 / 10000, 3),

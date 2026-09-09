@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { ChefHat, ChevronDown, ChevronUp } from "lucide-react";
+import clsx from "clsx";
+import { Check, ChefHat, ChevronDown, ChevronUp } from "lucide-react";
 import Field from "../components/inputs/Field.jsx";
 import DecimalInput from "../components/inputs/DecimalInput.jsx";
 import Toggle from "../components/inputs/Toggle.jsx";
@@ -17,12 +18,46 @@ const FIELDS = [
   { key: "buzYanakAdet", label: "Buzdolabı yanak", suffix: "adet", integer: true }
 ];
 
+/** Hesaba dahil seçimi — mobilde de tek dokunuşla açılıp kapanır. */
+function IncludeChip({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={clsx(
+        "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition",
+        checked
+          ? "border-brand-500 ring-4 ring-brand-50 text-ink-900 bg-white"
+          : "border-ink-200 text-ink-500 bg-surface-50 hover:border-ink-300"
+      )}
+    >
+      <span
+        className={clsx(
+          "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition",
+          checked ? "bg-brand-500 border-brand-500 text-white" : "border-ink-300 bg-white"
+        )}
+      >
+        {checked && <Check size={14} strokeWidth={3} />}
+      </span>
+      {label}
+    </button>
+  );
+}
+
 export default function MutfakModule({ room, onChange }) {
   const basic = room.basic || {};
   const kademeliMutfak = Boolean(basic.kademeliMutfak);
+  /* Eski kayıtlarda alan yok → dahil sayılır (hesaplama ile aynı kural) */
+  const altDolapDahil = basic.altDolapDahil !== false;
+  const ustDolapDahil = basic.ustDolapDahil !== false;
   const [ozetOpen, setOzetOpen] = useState(false);
 
   const breakdown = useMemo(() => getMutfakM2Breakdown(basic), [basic]);
+  const haricTutulan = [!altDolapDahil && "alt dolap", !ustDolapDahil && "üst dolap"]
+    .filter(Boolean)
+    .join(" ve ");
 
   function patch(key, v) {
     onChange({ ...room, basic: { ...basic, [key]: v } });
@@ -36,15 +71,36 @@ export default function MutfakModule({ room, onChange }) {
         subtitle="Excel maliyet raporuyla uyumlu hesap"
         accent="bg-accent-100 text-accent-600"
       />
-      <div className="mt-3">
+      <div className="mt-3 space-y-3">
+        <div className="rounded-xl border border-ink-200 bg-white px-4 py-3">
+          <p className="text-sm font-bold text-ink-900">Hesaba dahil</p>
+          <p className="text-xs text-ink-500 mt-0.5">
+            Seçimi kaldırılan dolap toplam m²'ye eklenmez.
+          </p>
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            <IncludeChip
+              checked={altDolapDahil}
+              onChange={(v) => patch("altDolapDahil", v)}
+              label="Alt dolap"
+            />
+            <IncludeChip
+              checked={ustDolapDahil}
+              onChange={(v) => patch("ustDolapDahil", v)}
+              label="Üst dolap"
+            />
+          </div>
+        </div>
         <Toggle
           checked={kademeliMutfak}
           onChange={(v) => patch("kademeliMutfak", v)}
+          disabled={!ustDolapDahil}
           label="Kademeli mutfak"
           description={
-            kademeliMutfak
-              ? "Üst dolap yüzölçümüne %30 ilave uygulanır."
-              : "İşaretlenirse üst dolap alanına %30 ilave uygulanır."
+            !ustDolapDahil
+              ? "Üst dolap hesaba dahil olmadığı için uygulanmaz."
+              : kademeliMutfak
+                ? "Üst dolap yüzölçümüne %30 ilave uygulanır."
+                : "İşaretlenirse üst dolap alanına %30 ilave uygulanır."
           }
         />
       </div>
@@ -61,7 +117,11 @@ export default function MutfakModule({ room, onChange }) {
         ))}
         <Field
           label="Toplam mutfak m²"
-          hint="Üst + alt + buz + yanak + boy alanlarının toplamı (cm² → m²)."
+          hint={
+            haricTutulan
+              ? `Hesaba dahil edilmeyen: ${haricTutulan}.`
+              : "Üst + alt + buz + yanak + boy alanlarının toplamı (cm² → m²)."
+          }
         >
           <div className="yk-input-shell-flat w-full py-2.5 px-3 text-sm font-semibold text-ink-800 tabular-nums">
             {formatNumber(breakdown.totalM2, " m²")}
