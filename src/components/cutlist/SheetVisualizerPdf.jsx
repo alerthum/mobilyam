@@ -214,22 +214,55 @@ function PdfDimLabel({
 }
 
 /**
- * @param {{ sheet: CutSheet, showLabels?: boolean }} props
+ * Yan yana gelen dar sütunların ölçülerinin birbirinin içine geçmesini önlemek için
+ * seviyeli (kademeli / basamaklı) dikey ofset hesaplar.
+ * @param {Array<{ x: number, w: number }>} columns
+ * @param {number} scale
+ * @param {number} [minSpacing]
+ * @returns {number[]}
  */
-export default function SheetVisualizerPdf({ sheet, showLabels = true }) {
-  /* HTML önizleme ile birebir ölçü */
+function computeStaggeredLevels(columns, scale, minSpacing = 26) {
+  const levels = new Array(columns.length).fill(0);
+  for (let i = 1; i < columns.length; i += 1) {
+    const prevCx = (columns[i - 1].x + columns[i - 1].w / 2) * scale;
+    const curCx = (columns[i].x + columns[i].w / 2) * scale;
+    if (curCx - prevCx < minSpacing) {
+      if (levels[i - 1] === 0) {
+        levels[i] = 1;
+      } else if (levels[i - 1] === 1) {
+        const prevPrevCx = i >= 2 ? (columns[i - 2].x + columns[i - 2].w / 2) * scale : -999;
+        levels[i] = curCx - prevPrevCx < minSpacing && levels[i - 2] === 0 ? 2 : 0;
+      } else {
+        levels[i] = 0;
+      }
+    } else {
+      levels[i] = 0;
+    }
+  }
+  return levels;
+}
+
+/**
+ * @param {{ sheet: CutSheet, showLabels?: boolean, isFirstPage?: boolean }} props
+ */
+export default function SheetVisualizerPdf({ sheet, showLabels = true, isFirstPage = false }) {
+  /* Sayfa boşluğuna göre taşmayı engelleyen ama sayfayı dolduran maksimum ölçüler */
   const padL = 24;
   const padR = 18;
-  const padT = 28;
+  const padT = 38;
   const padB = 18;
-  const boardW = 400;
-  const scale = boardW / sheet.width;
+  const maxBoardW = 480;
+  /* İlk sayfada özet tablosu olduğundan 540, sonraki sayfalarda 640 */
+  const maxBoardH = isFirstPage ? 540 : 640;
+  const scale = Math.min(maxBoardW / sheet.width, maxBoardH / sheet.height);
+  const boardW = sheet.width * scale;
   const boardH = sheet.height * scale;
   const totalW = padL + boardW + padR;
   const totalH = padT + boardH + padB;
 
   const freeRects = (sheet.freeRects || []).filter((r) => r.width > 0.3 && r.height > 0.3);
   const columns = useMemo(() => sheetColumns(sheet), [sheet]);
+  const colLevels = useMemo(() => computeStaggeredLevels(columns, scale, 26), [columns, scale]);
 
   return (
     <div
@@ -243,54 +276,85 @@ export default function SheetVisualizerPdf({ sheet, showLabels = true }) {
         overflow: "hidden"
       }}
     >
-      {columns.map((col, idx) => {
-        const left = padL + col.x * scale;
-        const width = col.w * scale;
-        const fs = Math.max(8, Math.min(11, width * 0.32));
-        const label = fmtDim(col.w);
-        return (
-          <div
-            key={`ruler-${idx}`}
-            style={{
-              position: "absolute",
-              left,
-              top: 4,
-              width,
-              height: 20,
-              borderBottom: "1px solid #94a3b8",
-              boxSizing: "border-box"
-            }}
-          >
-            <PdfDimLabel
-              text={label}
-              boxW={width}
-              boxH={20}
-              fontSize={fs}
-              color="#1e293b"
-              fontWeight={700}
-            />
-          </div>
-        );
-      })}
-
       <div
         style={{
           position: "absolute",
           left: padL,
           top: 0,
           width: boardW,
-          height: 16
+          height: 12
         }}
       >
         <PdfDimLabel
           text={fmtDim(sheet.width)}
           boxW={boardW}
-          boxH={16}
-          fontSize={9}
+          boxH={12}
+          fontSize={8.5}
           color="#94a3b8"
           fontWeight={600}
         />
       </div>
+
+      {columns.map((col, idx) => {
+        const colX = padL + col.x * scale;
+        const colW = col.w * scale;
+        const cx = colX + colW / 2;
+        const level = colLevels[idx] || 0;
+        const fs = Math.max(7.5, Math.min(10.5, colW < 14 ? 7.5 : colW * 0.3));
+        const label = fmtDim(col.w);
+        const boxW = Math.max(26, colW);
+        const boxLeft = cx - boxW / 2;
+        const boxH = 16;
+        const rulerLineY = padT - 2;
+        const boxTop = level === 1 ? padT - 34 : level === 2 ? padT - 36 : padT - 20;
+
+        return (
+          <React.Fragment key={`ruler-${idx}`}>
+            <div
+              style={{
+                position: "absolute",
+                left: colX,
+                top: rulerLineY,
+                width: colW,
+                height: 1,
+                borderBottom: "1px solid #94a3b8"
+              }}
+            />
+            {level > 0 ? (
+              <div
+                style={{
+                  position: "absolute",
+                  left: cx,
+                  top: boxTop + 14,
+                  width: 0,
+                  height: rulerLineY - (boxTop + 14),
+                  borderLeft: "1px dashed #64748b",
+                  opacity: 0.75
+                }}
+              />
+            ) : null}
+            <div
+              style={{
+                position: "absolute",
+                left: boxLeft,
+                top: boxTop,
+                width: boxW,
+                height: boxH,
+                boxSizing: "border-box"
+              }}
+            >
+              <PdfDimLabel
+                text={label}
+                boxW={boxW}
+                boxH={boxH}
+                fontSize={fs}
+                color="#1e293b"
+                fontWeight={700}
+              />
+            </div>
+          </React.Fragment>
+        );
+      })}
 
       <div
         style={{

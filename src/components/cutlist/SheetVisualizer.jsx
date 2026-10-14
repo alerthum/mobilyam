@@ -1,4 +1,6 @@
 import React, { useMemo } from "react";
+import clsx from "clsx";
+import { Maximize2 } from "lucide-react";
 
 /** @typedef {import('../../lib/cutlist/types.js').CutSheet} CutSheet */
 /** @typedef {import('../../lib/cutlist/types.js').EdgeBanding} EdgeBanding */
@@ -12,9 +14,38 @@ const PART_FILLS = [
   "#ffedd5"
 ];
 
-const RULER_H = 24;
+const RULER_H = 34;
 const BAND_INSET = 5;
 const CHAR_W = 0.5;
+
+/**
+ * Yan yana gelen dar sütunların ölçülerinin birbirinin içine geçmesini önlemek için
+ * seviyeli (kademeli / basamaklı) dikey ofset hesaplar.
+ * @param {Array<{ x: number, w: number }>} columns
+ * @param {number} scale
+ * @param {number} [minSpacing]
+ * @returns {number[]} Her sütun için seviye indeksi (0, 1 veya 2)
+ */
+function computeStaggeredLevels(columns, scale, minSpacing = 24) {
+  const levels = new Array(columns.length).fill(0);
+  for (let i = 1; i < columns.length; i += 1) {
+    const prevCx = (columns[i - 1].x + columns[i - 1].w / 2) * scale;
+    const curCx = (columns[i].x + columns[i].w / 2) * scale;
+    if (curCx - prevCx < minSpacing) {
+      if (levels[i - 1] === 0) {
+        levels[i] = 1;
+      } else if (levels[i - 1] === 1) {
+        const prevPrevCx = i >= 2 ? (columns[i - 2].x + columns[i - 2].w / 2) * scale : -999;
+        levels[i] = curCx - prevPrevCx < minSpacing && levels[i - 2] === 0 ? 2 : 0;
+      } else {
+        levels[i] = 0;
+      }
+    } else {
+      levels[i] = 0;
+    }
+  }
+  return levels;
+}
 
 /**
  * @param {number} n
@@ -230,11 +261,24 @@ function DimLabel({ spec, muted = false }) {
 }
 
 /**
- * @param {{ sheet: CutSheet, showLabels?: boolean }} props
+ * @param {{
+ *   sheet: CutSheet,
+ *   showLabels?: boolean,
+ *   hoveredPartId?: string | null,
+ *   onPartHover?: ((part: any) => void) | null,
+ *   className?: string
+ * }} props
  */
-export default function SheetVisualizer({ sheet, showLabels = true }) {
+export function SheetSvg({
+  sheet,
+  showLabels = true,
+  hoveredPartId = null,
+  onPartHover = null,
+  className = "w-auto h-auto max-h-[500px] max-w-full block",
+  style = {}
+}) {
   const padX = 34;
-  const padTop = 30 + RULER_H;
+  const padTop = 22 + RULER_H;
   const padBottom = 28;
   const viewW = 320;
   const scale = (viewW - padX * 2) / sheet.width;
@@ -242,22 +286,28 @@ export default function SheetVisualizer({ sheet, showLabels = true }) {
 
   const freeRects = (sheet.freeRects || []).filter((r) => r.width > 0.3 && r.height > 0.3);
   const columns = useMemo(() => sheetColumns(sheet), [sheet]);
+  const colLevels = useMemo(() => computeStaggeredLevels(columns, scale, 22), [columns, scale]);
 
   return (
-    <div className="rounded-xl border border-ink-200 bg-white p-1.5 sm:p-2 overflow-hidden max-w-full w-full">
-      <svg
-        viewBox={`0 0 ${viewW} ${viewH}`}
-        className="w-full max-w-full h-auto block"
-        role="img"
-        aria-label={`Levha ${sheet.label}`}
-      >
-        {columns.map((col, idx) => {
-          const x1 = padX + col.x * scale;
+    <svg
+      viewBox={`0 0 ${viewW} ${viewH}`}
+      width={viewW}
+      height={viewH}
+      className={className}
+      style={{ aspectRatio: `${viewW} / ${viewH}`, ...style }}
+      role="img"
+      aria-label={`Levha ${sheet.label}`}
+    >
+      {columns.map((col, idx) => {
+        const x1 = padX + col.x * scale;
           const x2 = padX + (col.x + col.w) * scale;
           const cx = (x1 + x2) / 2;
           const colPx = x2 - x1;
-          const rulerY = padTop - RULER_H + 6;
-          const tickBottom = padTop - 3;
+          const rulerY = padTop - 10;
+          const tickBottom = padTop - 2;
+          const level = colLevels[idx] || 0;
+          const levelOffset = level * 10;
+          const labelY = rulerY - 2 - levelOffset;
 
           return (
             <g key={`ruler-${idx}`}>
@@ -284,13 +334,13 @@ export default function SheetVisualizer({ sheet, showLabels = true }) {
                   />
                   <line
                     x1={cx}
-                    y1={rulerY + 1}
+                    y1={labelY + 4}
                     x2={cx}
                     y2={tickBottom}
                     stroke="#64748b"
-                    strokeWidth={0.45}
+                    strokeWidth={0.5}
                     strokeDasharray="1.5 1.5"
-                    opacity={0.65}
+                    opacity={0.75}
                   />
                   <polygon
                     points={`${cx - 2},${tickBottom} ${cx + 2},${tickBottom} ${cx},${tickBottom + 2.5}`}
@@ -301,10 +351,10 @@ export default function SheetVisualizer({ sheet, showLabels = true }) {
               ) : null}
               <text
                 x={cx}
-                y={rulerY - 3}
+                y={labelY}
                 textAnchor="middle"
                 fill="#1e293b"
-                fontSize={clampFs(colPx < 12 ? 5 : colPx * 0.32, 4.5, 8)}
+                fontSize={clampFs(colPx < 12 ? 4.8 : colPx * 0.32, 4.2, 7.8)}
                 fontWeight={700}
               >
                 {fmtDim(col.w)}
@@ -315,7 +365,7 @@ export default function SheetVisualizer({ sheet, showLabels = true }) {
 
         <text
           x={padX + (sheet.width * scale) / 2}
-          y={padTop - RULER_H - 5}
+          y={padTop - RULER_H - 2}
           textAnchor="middle"
           fill="#94a3b8"
           fontSize={7}
@@ -415,8 +465,15 @@ export default function SheetVisualizer({ sheet, showLabels = true }) {
           );
           const clipId = `clip-part-${part.id}`;
 
+          const isHovered = hoveredPartId && hoveredPartId === part.id;
+
           return (
-            <g key={part.id}>
+            <g
+              key={part.id}
+              onMouseEnter={() => onPartHover?.(part)}
+              onMouseLeave={() => onPartHover?.(null)}
+              className={onPartHover ? "cursor-pointer" : undefined}
+            >
               <defs>
                 <clipPath id={clipId}>
                   <rect x={px} y={py} width={pw} height={ph} />
@@ -428,8 +485,8 @@ export default function SheetVisualizer({ sheet, showLabels = true }) {
                 width={pw}
                 height={ph}
                 fill={fill}
-                stroke="#64748b"
-                strokeWidth={0.75}
+                stroke={isHovered ? "#ea580c" : "#64748b"}
+                strokeWidth={isHovered ? 1.6 : 0.75}
               />
 
               {band ? (
@@ -494,6 +551,28 @@ export default function SheetVisualizer({ sheet, showLabels = true }) {
           );
         })}
       </svg>
+  );
+}
+
+/**
+ * @param {{ sheet: CutSheet, showLabels?: boolean, onInspect?: () => void }} props
+ */
+export default function SheetVisualizer({ sheet, showLabels = true, onInspect }) {
+  return (
+    <div
+      onClick={onInspect}
+      className={clsx(
+        "rounded-xl border border-ink-200 bg-white p-1.5 sm:p-2 overflow-hidden max-w-full w-full flex justify-center relative",
+        onInspect && "cursor-pointer group hover:border-brand-300 hover:shadow-md transition-all"
+      )}
+    >
+      <SheetSvg sheet={sheet} showLabels={showLabels} />
+      {onInspect && (
+        <div className="absolute top-2.5 right-2.5 opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ink-900/80 text-white text-[11px] font-medium shadow-md backdrop-blur-md pointer-events-none">
+          <Maximize2 size={13} className="text-brand-400" />
+          <span>Detaylı İncele</span>
+        </div>
+      )}
     </div>
   );
 }

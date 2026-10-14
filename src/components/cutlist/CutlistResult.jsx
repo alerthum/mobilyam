@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Scan } from "lucide-react";
 import IconButton from "../ui/IconButton.jsx";
 import SheetVisualizer from "./SheetVisualizer.jsx";
+import SheetInspectorModal from "./SheetInspectorModal.jsx";
 import CutlistCutSteps from "./CutlistCutSteps.jsx";
 import CutlistCutStepsTable from "./CutlistCutStepsTable.jsx";
 import {
@@ -34,6 +35,7 @@ function pctRound(n) {
  */
 export default function CutlistResult({ result, options, sheetMaterial }) {
   const [sheetIndex, setSheetIndex] = useState(0);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const sheet = result.sheets[sheetIndex];
 
   useEffect(() => {
@@ -125,9 +127,19 @@ export default function CutlistResult({ result, options, sheetMaterial }) {
                 {sheetTitle} · {sheetDims}
               </p>
             </div>
-            <div className="flex items-center gap-1 text-sm text-ink-600 shrink-0">
-              <IconButton
-                icon={ChevronLeft}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setInspectorOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 shadow-sm transition hover:scale-105 active:scale-95"
+                title="CAD & Ebatlama Diagnostiği / Büyüteç"
+              >
+                <Scan size={14} className="text-brand-500" />
+                <span className="hidden sm:inline">Detaylı İncele</span>
+              </button>
+              <div className="flex items-center gap-1 text-sm text-ink-600">
+                <IconButton
+                  icon={ChevronLeft}
                 variant="ghost"
                 ariaLabel="Önceki levha"
                 disabled={sheetIndex <= 0}
@@ -145,9 +157,14 @@ export default function CutlistResult({ result, options, sheetMaterial }) {
               />
             </div>
           </div>
+        </div>
 
           <div className="p-2.5 sm:p-3 space-y-3">
-            <SheetVisualizer sheet={sheet} showLabels={options.showPartLabels} />
+            <SheetVisualizer
+              sheet={sheet}
+              showLabels={options.showPartLabels}
+              onInspect={() => setInspectorOpen(true)}
+            />
 
             <div className="rounded-lg border border-ink-100 bg-white p-2.5 sm:p-3 text-xs sm:text-sm space-y-1 min-w-0 w-full">
               <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-ink-400 pb-1 border-b border-ink-50 mb-1">
@@ -211,6 +228,16 @@ export default function CutlistResult({ result, options, sheetMaterial }) {
       ) : null}
 
       <CutlistCutSteps result={result} />
+
+      <SheetInspectorModal
+        open={inspectorOpen}
+        onClose={() => setInspectorOpen(false)}
+        sheet={sheet}
+        sheetIndex={sheetIndex}
+        totalSheets={result.sheets.length}
+        onPrevSheet={() => setSheetIndex((i) => Math.max(0, i - 1))}
+        onNextSheet={() => setSheetIndex((i) => Math.min(result.sheets.length - 1, i + 1))}
+      />
     </div>
   );
 }

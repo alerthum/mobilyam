@@ -451,7 +451,11 @@ export default function CutlistPdfDocument({ result, parts, sheets, options }) {
           <div className="yk-pdf-cl-body">
             <SheetSidebar sheet={sheet} options={o} sheetMaterialSize={sheetMaterialSize} />
             <div className="yk-pdf-cl-diagram">
-              <SheetVisualizerPdf sheet={sheet} showLabels={o.showPartLabels !== false} />
+              <SheetVisualizerPdf
+                sheet={sheet}
+                showLabels={o.showPartLabels !== false}
+                isFirstPage={sheetIndex === 0}
+              />
             </div>
           </div>
 
